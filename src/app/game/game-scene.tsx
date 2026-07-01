@@ -1,8 +1,10 @@
 "use client";
 
 /**
- * Composition root for #6: builds the seeded static world and renders every
- * loaded chunk as instanced geometry. Replaces the #5-era demo cube scene.
+ * Composition root for #6/#7: builds the seeded static world, renders every
+ * loaded chunk as instanced geometry, and (#7) drops the player into it with
+ * pointer-lock FPS controls — replacing the #6-era `OrbitControls` demo
+ * camera with `PlayerController` + its lock-state HUD overlays.
  *
  * Client-only per the threejs skill's Next.js integration guidance
  * (`references/react-three-fiber.md` → "Next.js integration") — `page.tsx`
@@ -11,14 +13,20 @@
  * `THREE.*` objects here at module-body/render time.
  */
 
-import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { EYE_HEIGHT } from "~/game/player/step-player";
 import { createBlockAtlas } from "~/game/render/atlas";
 import { ChunkMesh } from "~/game/render/chunk-mesh";
+import { LockOverlay } from "~/game/render/lock-overlay";
+import {
+  PlayerController,
+  type LockState,
+  type PlayerControllerHandle,
+} from "~/game/render/player-controller";
 import { createLocalWorldStore } from "~/game/store/local-world-store";
-import { generateWorld } from "~/game/worldgen";
+import { GROUND_SURFACE_Y, generateWorld } from "~/game/worldgen";
 
 /** Fixed seed — the acceptance bar is "identical every load," not variety. */
 const WORLD_CONFIG = { seed: "threejs-craft-static-world-v1" };
@@ -57,47 +65,78 @@ export default function GameScene() {
   const { size, spawn } = store.generated;
   const chunkEntries = store.source.chunkEntries();
 
-  // Frame the whole 48x48 footprint from a 3/4 elevated angle, centered
-  // near spawn — well inside the camera's far plane at this world scale.
+  // Center the player in the spawn column's footprint (worldgen's `spawn`
+  // is an integer voxel coordinate) and stand it on the grass top face.
+  const spawnFeetY = GROUND_SURFACE_Y + 1;
+  const spawnPosition = useMemo(
+    () => ({ x: spawn.x + 0.5, y: spawnFeetY, z: spawn.z + 0.5 }),
+    [spawn.x, spawn.z, spawnFeetY],
+  );
   const cameraPosition: [number, number, number] = [
-    spawn.x - size * 0.15,
-    size * 0.9,
-    spawn.z + size * 1.35,
+    spawnPosition.x,
+    spawnFeetY + EYE_HEIGHT,
+    spawnPosition.z,
   ];
-  const controlsTarget: [number, number, number] = [spawn.x, 4, spawn.z];
+
+  // Lock-state is the *only* React state in the whole navigate feature — it
+  // changes on user-facing transitions (click, Esc, a lock denial), never
+  // per frame. See `player-controller.tsx` for the zero-re-render guarantee.
+  const [lockState, setLockState] = useState<LockState>("start");
+  const controllerRef = useRef<PlayerControllerHandle>(null);
+
+  const requestLock = useCallback(() => {
+    controllerRef.current?.requestLock();
+  }, []);
+  const dismissDenied = useCallback(
+    () => setLockState("start"),
+    [setLockState],
+  );
 
   return (
-    <Canvas
-      camera={{ position: cameraPosition, fov: 50, near: 0.1, far: 2000 }}
-      shadows
-      dpr={[1, 2]}
-      // Set touch-action once at setup so touch drags orbit instead of
-      // scrolling the page (callback param, not an effect mutating gl.domElement).
-      onCreated={({ gl }) => {
-        gl.domElement.style.touchAction = "none";
-      }}
-    >
-      <DrawCallProbe />
+    <div className="relative h-full w-full">
+      <Canvas
+        camera={{ position: cameraPosition, fov: 70, near: 0.1, far: 2000 }}
+        shadows
+        dpr={[1, 2]}
+        // Set touch-action once at setup so touch drags orbit instead of
+        // scrolling the page (callback param, not an effect mutating gl.domElement).
+        onCreated={({ gl }) => {
+          gl.domElement.style.touchAction = "none";
+        }}
+      >
+        <DrawCallProbe />
 
-      <hemisphereLight args={["#bfd4ff", "#1a1a2e", 0.7]} />
-      <ambientLight intensity={0.3} />
-      <directionalLight
-        position={[size * 0.6, size, size * 0.3]}
-        intensity={2.2}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-      />
-
-      {chunkEntries.map(({ chunk, origin }) => (
-        <ChunkMesh
-          key={`${origin.x},${origin.y},${origin.z}`}
-          chunk={chunk}
-          origin={origin}
-          atlas={atlas}
+        <hemisphereLight args={["#bfd4ff", "#1a1a2e", 0.7]} />
+        <ambientLight intensity={0.3} />
+        <directionalLight
+          position={[size * 0.6, size, size * 0.3]}
+          intensity={2.2}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
         />
-      ))}
 
-      <OrbitControls target={controlsTarget} makeDefault />
-    </Canvas>
+        {chunkEntries.map(({ chunk, origin }) => (
+          <ChunkMesh
+            key={`${origin.x},${origin.y},${origin.z}`}
+            chunk={chunk}
+            origin={origin}
+            atlas={atlas}
+          />
+        ))}
+
+        <PlayerController
+          ref={controllerRef}
+          world={store.generated.world}
+          spawn={spawnPosition}
+          onLockStateChange={setLockState}
+        />
+      </Canvas>
+
+      <LockOverlay
+        state={lockState}
+        onRequestLock={requestLock}
+        onDismissDenied={dismissDenied}
+      />
+    </div>
   );
 }
