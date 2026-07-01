@@ -33,6 +33,19 @@ export const BlockType = {
 export type BlockTypeId = (typeof BlockType)[keyof typeof BlockType];
 
 /**
+ * Alias for the `Command`/`CommandResult` contract frozen in
+ * `src/game/command.ts` (#8, feeding #9/#10): the issue's `BlockType` names
+ * exactly this block-id type. Declared here — not in `command.ts` — so it
+ * merges with the `BlockType` *value* export above (TS keeps type and value
+ * identifiers in separate namespaces, so a `const BlockType` and a `type
+ * BlockType` with the same name coexist safely) instead of colliding with
+ * it on import. Anywhere that already does `import { BlockType } from
+ * "~/game/blocks"` now gets both the runtime id constants and this type for
+ * free.
+ */
+export type BlockType = BlockTypeId;
+
+/**
  * Per-type block properties, keyed by numeric id. Populated for every id in
  * `BlockType` — `blocks.ts` is the only module allowed to know these values.
  */

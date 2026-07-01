@@ -153,14 +153,32 @@ export interface ChunkMeshProps {
   /** World-space coordinate of this chunk's local (0,0,0) voxel. */
   readonly origin: Coord3;
   readonly atlas: BlockAtlas;
+  /**
+   * #8's dirty-chunk signal: `chunk` (a `Chunk` instance) is mutated
+   * **in place** by `GameStore.apply` (see `command.ts`'s `World.setBlock`),
+   * so its object identity never changes when a block breaks — `useMemo`
+   * below would never see `chunk` as "different" without this. Callers pass
+   * `store.getChunkVersion(key)` for this chunk's key; bumping it is what
+   * actually triggers `computeChunkInstances` to re-run for *this* chunk
+   * only, which is the O(dirty chunks)-not-O(world) rebuild the render
+   * layer requires. Defaults to 0 so #6's original (no dirty-tracking)
+   * call sites keep working unchanged.
+   */
+  readonly version?: number;
 }
 
 /** One chunk's worth of instanced geometry, positioned at its world origin. */
-export function ChunkMesh({ chunk, origin, atlas }: ChunkMeshProps) {
-  const groups = useMemo(
-    () => computeChunkInstances(chunk, origin),
-    [chunk, origin],
-  );
+export function ChunkMesh({ chunk, origin, atlas, version = 0 }: ChunkMeshProps) {
+  const groups = useMemo(() => {
+    // `version` is intentionally not read here — it exists purely so this
+    // dep array busts the memo when #8's `GameStore` bumps it for this
+    // chunk's key, since `chunk` mutates in place and never changes
+    // identity on its own. The `void` keeps `react-hooks/exhaustive-deps`
+    // (correctly) satisfied that every listed dep is deliberate, not a
+    // request to disable/ignore the rule.
+    void version;
+    return computeChunkInstances(chunk, origin);
+  }, [chunk, origin, version]);
   const material = getSharedMaterial(atlas);
 
   return (
