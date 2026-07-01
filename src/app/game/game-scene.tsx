@@ -21,6 +21,7 @@ import { EYE_HEIGHT } from "~/game/player/step-player";
 import { createBlockAtlas } from "~/game/render/atlas";
 import { BlockTargeting } from "~/game/render/block-target";
 import { ChunkMesh } from "~/game/render/chunk-mesh";
+import { ControlsLegend } from "~/game/render/controls-legend";
 import { CrosshairOverlay } from "~/game/render/crosshair-overlay";
 import { HotbarHud } from "~/game/render/hotbar-hud";
 import { LockOverlay } from "~/game/render/lock-overlay";
@@ -171,6 +172,7 @@ export default function GameScene() {
         onRequestLock={requestLock}
         onDismissDenied={dismissDenied}
       />
+      <ControlsLegend />
     </div>
   );
 }

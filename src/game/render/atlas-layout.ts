@@ -12,8 +12,12 @@ import { BlockType, type BlockTypeId } from "~/game/blocks";
 /** Pixel size of one square tile in the atlas. */
 export const ATLAS_TILE_PX = 16;
 
-/** Atlas grid dimensions, in tiles. */
-export const ATLAS_COLS = 4;
+/**
+ * Atlas grid dimensions, in tiles. Grown from 4x2 to 5x2 for #11's cat-face
+ * grass tile — one new cell (col 4, row 0) is used; (col 4, row 1) is
+ * intentionally blank (no tile samples it, so its pixels are never seen).
+ */
+export const ATLAS_COLS = 5;
 export const ATLAS_ROWS = 2;
 
 /** Every distinct tile the atlas paints. */
@@ -25,7 +29,8 @@ export type TileName =
   | "grass_side"
   | "grass_bottom"
   | "wood_top"
-  | "wood_side";
+  | "wood_side"
+  | "cat_face_grass_top";
 
 interface TileCell {
   readonly col: number;
@@ -42,6 +47,7 @@ export const TILE_LAYOUT: Record<TileName, TileCell> = {
   grass_bottom: { col: 1, row: 1 },
   wood_top: { col: 2, row: 1 },
   wood_side: { col: 3, row: 1 },
+  cat_face_grass_top: { col: 4, row: 0 },
 };
 
 export interface AtlasRect {
@@ -115,4 +121,16 @@ const BLOCK_FACE_TILES: Partial<Record<BlockTypeId, BoxFaceTiles>> = {
  */
 export function getBlockFaceTiles(id: BlockTypeId): BoxFaceTiles {
   return BLOCK_FACE_TILES[id] ?? uniformFaces("stone");
+}
+
+/**
+ * The rare cosmetic "cat grass" variant (#11, `~/game/render/cat-grass.ts`):
+ * identical to `getBlockFaceTiles(BlockType.Grass)` on every face except the
+ * top, which samples the cat-face tile instead of plain `grass_top`. The
+ * block is still `BlockType.Grass` in every way that matters to gameplay —
+ * this only changes which atlas rectangle the rendered box's top face
+ * samples (see `box-uv.ts` for the per-face UV mechanism).
+ */
+export function getCatGrassFaceTiles(): BoxFaceTiles {
+  return { ...getBlockFaceTiles(BlockType.Grass), top: "cat_face_grass_top" };
 }

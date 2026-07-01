@@ -6,7 +6,22 @@ import dynamic from "next/dynamic";
 // server-render. Per the threejs skill's Next.js integration guidance
 // (.claude/skills/threejs/references/react-three-fiber.md → "Next.js integration"),
 // load the scene client-only with `ssr: false`.
-const GameScene = dynamic(() => import("./game-scene"), { ssr: false });
+//
+// `loading` (#11) is a cheap, static paw touch shown only for the brief
+// window while the `game-scene.tsx` chunk itself is being fetched/parsed —
+// not a per-frame animation, so it doesn't touch any of the render-loop
+// invariants above.
+const GameScene = dynamic(() => import("./game-scene"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center gap-2 text-white/70">
+      <span aria-hidden="true" className="text-3xl">
+        🐾
+      </span>
+      <span className="text-sm">Loading world…</span>
+    </div>
+  ),
+});
 
 export default function GamePage() {
   return (

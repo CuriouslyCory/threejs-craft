@@ -6,6 +6,7 @@ import {
   ATLAS_ROWS,
   TILE_LAYOUT,
   getBlockFaceTiles,
+  getCatGrassFaceTiles,
   tileRect,
   type TileName,
 } from "~/game/render/atlas-layout";
@@ -68,5 +69,26 @@ describe("getBlockFaceTiles", () => {
       const faces = getBlockFaceTiles(blockType);
       expect(new Set(Object.values(faces))).toEqual(new Set([expected]));
     }
+  });
+});
+
+describe("getCatGrassFaceTiles", () => {
+  it("matches plain grass on every face except the top", () => {
+    const grass = getBlockFaceTiles(BlockType.Grass);
+    const catGrass = getCatGrassFaceTiles();
+
+    expect(catGrass.top).toBe("cat_face_grass_top");
+    expect(catGrass.bottom).toBe(grass.bottom);
+    expect(catGrass.px).toBe(grass.px);
+    expect(catGrass.nx).toBe(grass.nx);
+    expect(catGrass.pz).toBe(grass.pz);
+    expect(catGrass.nz).toBe(grass.nz);
+  });
+
+  it("the cat-face tile has its own atlas rect (present in TILE_LAYOUT, distinct from grass_top)", () => {
+    expect(TILE_LAYOUT.cat_face_grass_top).toBeDefined();
+    const catRect = tileRect("cat_face_grass_top");
+    const grassRect = tileRect("grass_top");
+    expect(catRect).not.toEqual(grassRect);
   });
 });
