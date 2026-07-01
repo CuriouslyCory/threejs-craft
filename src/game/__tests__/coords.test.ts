@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHUNK_SIZE,
   chunkKey,
+  parseChunkKey,
   worldToChunk,
   worldToChunkCoord,
   worldToLocal,
@@ -63,5 +64,17 @@ describe("coords", () => {
     expect(chunkKey(0, 0, 0)).toBe("0,0,0");
     expect(chunkKey(-1, 2, -3)).toBe("-1,2,-3");
     expect(chunkKey(1, 0, 0)).not.toBe(chunkKey(0, 1, 0));
+  });
+
+  it("parseChunkKey reverses chunkKey, including negative coordinates", () => {
+    for (const coord of [
+      { cx: 0, cy: 0, cz: 0 },
+      { cx: -1, cy: 2, cz: -3 },
+      { cx: 12, cy: -7, cz: 100 },
+    ]) {
+      expect(parseChunkKey(chunkKey(coord.cx, coord.cy, coord.cz))).toEqual(
+        coord,
+      );
+    }
   });
 });

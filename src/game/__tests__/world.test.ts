@@ -39,4 +39,29 @@ describe("World", () => {
     expect(() => world.getBlock(1_000_000, -1_000_000, 500)).not.toThrow();
     expect(world.getBlock(1_000_000, -1_000_000, 500)).toBe(BlockType.Air);
   });
+
+  it("chunkEntries lists every loaded chunk with its coordinate", () => {
+    const world = new World();
+    expect(world.chunkEntries()).toEqual([]);
+
+    world.setBlock(0, 0, 0, BlockType.Stone);
+    world.setBlock(20, 0, 20, BlockType.Stone);
+    world.setBlock(-1, -1, -1, BlockType.Wood);
+
+    const entries = world.chunkEntries();
+    expect(entries).toHaveLength(3);
+
+    const coords = entries.map(({ cx, cy, cz }) => ({ cx, cy, cz }));
+    expect(coords).toEqual(
+      expect.arrayContaining([
+        { cx: 0, cy: 0, cz: 0 },
+        { cx: 1, cy: 0, cz: 1 },
+        { cx: -1, cy: -1, cz: -1 },
+      ]),
+    );
+
+    for (const entry of entries) {
+      expect(world.getChunk(entry.cx, entry.cy, entry.cz)).toBe(entry.chunk);
+    }
+  });
 });
