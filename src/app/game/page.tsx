@@ -16,7 +16,8 @@ export default function GamePage() {
           <span className="text-[hsl(280,100%,70%)]">/game</span> — static world
         </h1>
         <p className="text-sm text-white/70">
-          Drag to orbit, scroll to zoom — the seeded 48×48 terrain and trees.
+          Click to look around — WASD to move, Shift to sprint, Space to jump
+          (double-tap to fly), Esc to pause.
         </p>
       </div>
       <GameScene />
