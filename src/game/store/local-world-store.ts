@@ -3,13 +3,12 @@
  * with a minimal, forward-compatible "world source" so `game-scene.tsx`
  * doesn't reach into `World` directly.
  *
- * This is deliberately thin. #8 (picking) and #10 (the frozen
- * Command/WorldSource contract) will formalize the real read/write surface
- * a world source needs to expose (mutation commands, change notifications,
- * etc.) — `LocalWorldSource` here is *just* enough read-only surface for
- * #6's static render, not a preview of that contract. Don't extend this
- * class's public surface to anticipate #8/#10's shape; let those issues
- * design it when they land.
+ * This is deliberately thin. #8 (picking) formalized mutation
+ * (`~/game/store/world-store.ts`'s `GameStore`) on top of it. #10 formalizes
+ * the read-side `WorldSource` interface below — the seam that lets the
+ * composition root (`game-scene.tsx`) swap `LocalWorldSource` for a
+ * `RemoteWorldSource` (`~/game/store/remote-world-source.ts`) without any
+ * other code changing.
  */
 
 import type { Chunk } from "~/game/chunk";
@@ -29,8 +28,20 @@ export interface ChunkSourceEntry {
   readonly origin: ChunkOrigin;
 }
 
-/** Thin read-only placeholder over an in-memory `World`. */
-export class LocalWorldSource {
+/**
+ * The read surface the render layer needs from *any* world source, local or
+ * remote (#10). Both `LocalWorldSource` (below) and `RemoteWorldSource`
+ * (`~/game/store/remote-world-source.ts`) satisfy this — it's what makes
+ * the composition-root factory swap in `game-scene.tsx` type-check no
+ * matter which one is chosen.
+ */
+export interface WorldSource {
+  /** Every currently-loaded chunk, with its world-space origin. */
+  chunkEntries(): ChunkSourceEntry[];
+}
+
+/** Thin read-only surface over an in-memory `World`. */
+export class LocalWorldSource implements WorldSource {
   constructor(private readonly world: World) {}
 
   /** Every currently-loaded chunk, with its world-space origin. */
@@ -48,18 +59,19 @@ export class LocalWorldSource {
 
 export interface LocalWorldStore {
   readonly generated: GeneratedWorld;
-  readonly source: LocalWorldSource;
+  readonly source: WorldSource;
 }
 
 /**
- * Build the composition-root store: a generated world plus its (placeholder)
- * world source. `SourceCtor` is injected — not hardcoded to `LocalWorldSource`
- * — purely so #8/#10 can swap in the formalized `WorldSource` later without
- * changing this factory's call sites.
+ * Build the composition-root store: a generated world plus its world
+ * source. `SourceCtor` is injected — not hardcoded to `LocalWorldSource` —
+ * which is what lets `game-scene.tsx` (#10) swap in `RemoteWorldSource`
+ * (or any other `WorldSource`) at a single call site without changing this
+ * factory or any of its other call sites.
  */
 export function createLocalWorldStore(
   generated: GeneratedWorld,
-  SourceCtor: new (world: World) => LocalWorldSource = LocalWorldSource,
+  SourceCtor: new (world: World) => WorldSource = LocalWorldSource,
 ): LocalWorldStore {
   return {
     generated,
