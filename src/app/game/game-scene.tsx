@@ -30,12 +30,41 @@ import {
   type LockState,
   type PlayerControllerHandle,
 } from "~/game/render/player-controller";
-import { createLocalWorldStore } from "~/game/store/local-world-store";
+import {
+  createLocalWorldStore,
+  LocalWorldSource,
+  type WorldSource,
+} from "~/game/store/local-world-store";
+import { RemoteWorldSource } from "~/game/store/remote-world-source";
 import { createGameStore } from "~/game/store/world-store";
+import type { World } from "~/game/world";
 import { GROUND_SURFACE_Y, generateWorld } from "~/game/worldgen";
 
 /** Fixed seed — the acceptance bar is "identical every load," not variety. */
 const WORLD_CONFIG = { seed: "threejs-craft-static-world-v1" };
+
+/** The shape both `WorldSource` constructors below must satisfy. */
+type WorldSourceCtor = new (world: World) => WorldSource;
+
+/**
+ * Compile-time proof (#10) that `RemoteWorldSource` — the identity adapter
+ * over `LocalWorldSource` (`~/game/store/remote-world-source.ts`) — is a
+ * drop-in `WorldSourceCtor`, exactly like `LocalWorldSource` itself. Neither
+ * constant is *called* here; this only exercises the type, so it can't
+ * change what actually runs.
+ */
+const _remoteWorldSourceCtor: WorldSourceCtor = RemoteWorldSource;
+void _remoteWorldSourceCtor;
+
+/**
+ * The composition-root swap point (#10): the single place `LocalWorldSource`
+ * and `RemoteWorldSource` trade places. Both satisfy `WorldSource` (proved
+ * above), so swapping this line to `RemoteWorldSource` compiles and runs the
+ * game unchanged — `RemoteWorldSource` is an identity adapter over
+ * `LocalWorldSource`, not a real network source yet. Default stays
+ * `LocalWorldSource`: the running game must not change.
+ */
+const WORLD_SOURCE_CTOR: WorldSourceCtor = LocalWorldSource; // <- swap to RemoteWorldSource to prove the seam
 
 /**
  * Logs `gl.info.render.calls` once shortly after mount so the "~1 draw call
@@ -62,7 +91,7 @@ export default function GameScene() {
   // Built once per mount: the world itself (pure/deterministic) and the
   // procedural atlas texture (canvas-backed — must stay client-only).
   const store = useMemo(
-    () => createLocalWorldStore(generateWorld(WORLD_CONFIG)),
+    () => createLocalWorldStore(generateWorld(WORLD_CONFIG), WORLD_SOURCE_CTOR),
     [],
   );
   const atlas = useMemo(() => createBlockAtlas(), []);
