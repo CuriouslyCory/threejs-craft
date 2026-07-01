@@ -13,10 +13,10 @@ Every new module, system, or behavior change MUST have tests. This is not option
 - **Before implementing**: check if existing tests cover the area. Read `src/game/__tests__/` for patterns.
 - **During implementation**: write tests alongside code. Don't defer to "later".
 - **After implementation**: run `pnpm test` and verify your new tests catch real bugs (intentionally break the code, confirm the test fails, then fix).
-- **Test structure**: `src/game/__tests__/{ecs,engine,systems,cats,integration}/` — match the source layout.
-- **Helpers available**: `entityFactories.ts` (composable entity spawners), `mockInputManager.ts`, `mockSceneManager.ts`, `mockMapManager.ts` — use these instead of importing Three.js or DOM.
-- **Integration tests**: for cross-system behavior (e.g., swimming+oxygen, cat summon→expire→dismiss), put tests in `src/game/__tests__/integration/`.
-- **Debug bridge**: `window.__catHerderDebug` provides `tick(n)` for deterministic physics stepping in E2E tests via `dev-browser`.
+- **Test runner**: [Vitest](https://vitest.dev), run via `pnpm test` (non-watch, `vitest run`) or `pnpm test:watch` during development. Configured in `vitest.config.ts` at the repo root.
+- **Environment**: tests run in plain Node (no jsdom). Keep game/domain logic testable as pure functions/modules that don't require a DOM or a real Three.js renderer.
+- **Test structure**: co-locate tests under `src/game/__tests__/`, mirroring the domain modules as they're added (e.g. a module at `src/game/foo.ts` gets a test at `src/game/__tests__/foo.test.ts`). Grow subdirectories under `__tests__/` only as real domain modules warrant them — don't pre-create structure for code that doesn't exist yet.
+- **Path alias**: the `~/` alias (from `tsconfig.json`, resolving to `src/`) works in tests via the `vite-tsconfig-paths` plugin — import with `~/game/...` the same way you would in app code.
 
 ### Delight the user
 
