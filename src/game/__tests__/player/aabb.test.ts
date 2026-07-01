@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  boxesOverlap,
   boxFromFeetPosition,
   boxIntersectsSolid,
   sweepAxis,
@@ -78,5 +79,25 @@ describe("sweepAxis", () => {
     expect(result.collided).toBe(true);
     const resolved = translateBox(box, "x", result.delta);
     expect(resolved.min.x).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("boxesOverlap", () => {
+  it("is true when two boxes' volumes overlap", () => {
+    const a = { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } };
+    const b = { min: { x: 0.5, y: 0.5, z: 0.5 }, max: { x: 1.5, y: 1.5, z: 1.5 } };
+    expect(boxesOverlap(a, b)).toBe(true);
+  });
+
+  it("is false when two boxes are far apart", () => {
+    const a = { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } };
+    const b = { min: { x: 10, y: 10, z: 10 }, max: { x: 11, y: 11, z: 11 } };
+    expect(boxesOverlap(a, b)).toBe(false);
+  });
+
+  it("is false when two boxes only touch along a shared face", () => {
+    const a = { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } };
+    const b = { min: { x: 1, y: 0, z: 0 }, max: { x: 2, y: 1, z: 1 } };
+    expect(boxesOverlap(a, b)).toBe(false);
   });
 });
