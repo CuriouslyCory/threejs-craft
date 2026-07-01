@@ -1,113 +1,207 @@
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef, type ReactNode } from "react";
-import type { Group } from "three";
+/**
+ * Composition root for #6/#7: builds the seeded static world, renders every
+ * loaded chunk as instanced geometry, and (#7) drops the player into it with
+ * pointer-lock FPS controls — replacing the #6-era `OrbitControls` demo
+ * camera with `PlayerController` + its lock-state HUD overlays.
+ *
+ * Client-only per the threejs skill's Next.js integration guidance
+ * (`references/react-three-fiber.md` → "Next.js integration") — `page.tsx`
+ * loads this module via `next/dynamic` with `{ ssr: false }`, so it's safe
+ * to touch `document`/canvas (via `createBlockAtlas`) and construct
+ * `THREE.*` objects here at module-body/render time.
+ */
+
+import { Canvas, useThree } from "@react-three/fiber";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+
+import { chunkKey, worldToChunkCoord } from "~/game/coords";
+import { EYE_HEIGHT } from "~/game/player/step-player";
+import { createBlockAtlas } from "~/game/render/atlas";
+import { BlockTargeting } from "~/game/render/block-target";
+import { ChunkMesh } from "~/game/render/chunk-mesh";
+import { ControlsLegend } from "~/game/render/controls-legend";
+import { CrosshairOverlay } from "~/game/render/crosshair-overlay";
+import { HotbarHud } from "~/game/render/hotbar-hud";
+import { LockOverlay } from "~/game/render/lock-overlay";
+import {
+  PlayerController,
+  type LockState,
+  type PlayerControllerHandle,
+} from "~/game/render/player-controller";
+import {
+  createLocalWorldStore,
+  LocalWorldSource,
+  type WorldSource,
+} from "~/game/store/local-world-store";
+import { RemoteWorldSource } from "~/game/store/remote-world-source";
+import { createGameStore } from "~/game/store/world-store";
+import type { World } from "~/game/world";
+import { GROUND_SURFACE_Y, generateWorld } from "~/game/worldgen";
+
+/** Fixed seed — the acceptance bar is "identical every load," not variety. */
+const WORLD_CONFIG = { seed: "threejs-craft-static-world-v1" };
+
+/** The shape both `WorldSource` constructors below must satisfy. */
+type WorldSourceCtor = new (world: World) => WorldSource;
 
 /**
- * Drag-to-rotate the primitive.
- *
- * We attach native pointer listeners to the canvas element (via useThree().gl)
- * rather than using r3f's per-object onPointer* events, for two reasons:
- *   1. A drag should keep rotating even when the cursor leaves the cube — mesh
- *      onPointerMove stops firing once the pointer is off the mesh.
- *   2. It avoids r3f's version-sensitive pointer-capture surface (the threejs
- *      skill flags TSL/r3f event internals as things to not guess at).
- * See .claude/skills/threejs/references/interaction.md for the pointer/NDC
- * fundamentals this builds on.
+ * Compile-time proof (#10) that `RemoteWorldSource` — the identity adapter
+ * over `LocalWorldSource` (`~/game/store/remote-world-source.ts`) — is a
+ * drop-in `WorldSourceCtor`, exactly like `LocalWorldSource` itself. Neither
+ * constant is *called* here; this only exercises the type, so it can't
+ * change what actually runs.
  */
-function DragToRotate({ children }: { children: ReactNode }) {
-  const group = useRef<Group>(null);
-  // Target rotation the drag writes to; useFrame eases the group toward it.
-  const target = useRef({ x: 0.35, y: 0.6 });
+const _remoteWorldSourceCtor: WorldSourceCtor = RemoteWorldSource;
+void _remoteWorldSourceCtor;
+
+/**
+ * The composition-root swap point (#10): the single place `LocalWorldSource`
+ * and `RemoteWorldSource` trade places. Both satisfy `WorldSource` (proved
+ * above), so swapping this line to `RemoteWorldSource` compiles and runs the
+ * game unchanged — `RemoteWorldSource` is an identity adapter over
+ * `LocalWorldSource`, not a real network source yet. Default stays
+ * `LocalWorldSource`: the running game must not change.
+ */
+const WORLD_SOURCE_CTOR: WorldSourceCtor = LocalWorldSource; // <- swap to RemoteWorldSource to prove the seam
+
+/**
+ * Logs `gl.info.render.calls` once shortly after mount so the "~1 draw call
+ * per chunk" perf guard (threejs skill → `references/performance.md`) can be
+ * spot-checked via the devtools console without a permanent on-screen HUD.
+ */
+function DrawCallProbe() {
   const gl = useThree((state) => state.gl);
 
   useEffect(() => {
-    const el = gl.domElement;
-    let dragging = false;
-    let lastX = 0;
-    let lastY = 0;
-
-    const onPointerDown = (e: PointerEvent) => {
-      dragging = true;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      el.setPointerCapture(e.pointerId);
-    };
-    const onPointerMove = (e: PointerEvent) => {
-      if (!dragging) return;
-      // Horizontal drag → yaw (Y), vertical drag → pitch (X).
-      target.current.y += (e.clientX - lastX) * 0.01;
-      target.current.x += (e.clientY - lastY) * 0.01;
-      lastX = e.clientX;
-      lastY = e.clientY;
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      dragging = false;
-      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
-    };
-
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
-    return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerUp);
-    };
+    const id = window.setTimeout(() => {
+      console.info(
+        "[game-scene] gl.info.render.calls =",
+        gl.info.render.calls,
+      );
+    }, 300);
+    return () => window.clearTimeout(id);
   }, [gl]);
 
-  // useFrame IS the render loop in r3f (invariant 4 handled for us). Ease toward
-  // the drag target so motion feels smooth instead of 1:1 jumpy.
-  useFrame(() => {
-    const g = group.current;
-    if (!g) return;
-    g.rotation.x += (target.current.x - g.rotation.x) * 0.15;
-    g.rotation.y += (target.current.y - g.rotation.y) * 0.15;
-  });
-
-  return <group ref={group}>{children}</group>;
+  return null;
 }
 
 export default function GameScene() {
+  // Built once per mount: the world itself (pure/deterministic) and the
+  // procedural atlas texture (canvas-backed — must stay client-only).
+  const store = useMemo(
+    () => createLocalWorldStore(generateWorld(WORLD_CONFIG), WORLD_SOURCE_CTOR),
+    [],
+  );
+  const atlas = useMemo(() => createBlockAtlas(), []);
+  useEffect(() => () => atlas.texture.dispose(), [atlas]);
+
+  // #8's mutation/notification store, layered on top of #6's read-only
+  // `store.generated.world`. Memoized so it (and the world it wraps) live
+  // for the whole component lifetime, not re-created per render.
+  const gameStore = useMemo(
+    () => createGameStore(store.generated.world),
+    [store],
+  );
+  // Subscribing here is what makes `apply()` (called from `BlockTargeting`
+  // on a break) actually cause a React re-render at all — without it,
+  // `chunkVersion` below would never observe the bump `apply` wrote into
+  // `gameStore`. This is a discrete, user-driven re-render (a click), not a
+  // per-frame one, so it doesn't regress #7's zero-setState-per-frame rule.
+  useSyncExternalStore(gameStore.subscribe, gameStore.getVersionSnapshot);
+
+  const { size, spawn } = store.generated;
+  // Memoized (not called fresh in the render body) so `chunk`/`origin`
+  // object identity stays stable across re-renders — required for
+  // `ChunkMesh`'s `useMemo` (keyed on `[chunk, origin, version]`) to only
+  // recompute the *actually dirty* chunk when `gameStore`'s version bumps,
+  // rather than every chunk on every re-render.
+  const chunkEntries = useMemo(() => store.source.chunkEntries(), [store]);
+
+  // Center the player in the spawn column's footprint (worldgen's `spawn`
+  // is an integer voxel coordinate) and stand it on the grass top face.
+  const spawnFeetY = GROUND_SURFACE_Y + 1;
+  const spawnPosition = useMemo(
+    () => ({ x: spawn.x + 0.5, y: spawnFeetY, z: spawn.z + 0.5 }),
+    [spawn.x, spawn.z, spawnFeetY],
+  );
+  const cameraPosition: [number, number, number] = [
+    spawnPosition.x,
+    spawnFeetY + EYE_HEIGHT,
+    spawnPosition.z,
+  ];
+
+  // Lock-state is the *only* React state in the whole navigate feature — it
+  // changes on user-facing transitions (click, Esc, a lock denial), never
+  // per frame. See `player-controller.tsx` for the zero-re-render guarantee.
+  const [lockState, setLockState] = useState<LockState>("start");
+  const controllerRef = useRef<PlayerControllerHandle>(null);
+
+  const requestLock = useCallback(() => {
+    controllerRef.current?.requestLock();
+  }, []);
+  const dismissDenied = useCallback(
+    () => setLockState("start"),
+    [setLockState],
+  );
+
   return (
-    <Canvas
-      camera={{ position: [3, 2, 4], fov: 50 }}
-      shadows
-      dpr={[1, 2]}
-      // Set touch-action once at setup so touch drags rotate instead of scrolling
-      // the page. Done here (callback param, not a hook value) rather than mutating
-      // gl.domElement in an effect, which the react-hooks immutability rule forbids.
-      onCreated={({ gl }) => {
-        gl.domElement.style.touchAction = "none";
-      }}
-    >
-      {/* Lights only — no external HDRI fetch so the route works offline. For
-          image-based lighting, add <Suspense><Environment preset="city" /></Suspense>
-          from @react-three/drei (see references/lighting-and-env.md). */}
-      <hemisphereLight args={["#bfd4ff", "#1a1a2e", 0.6]} />
-      <ambientLight intensity={0.25} />
-      <directionalLight
-        position={[5, 6, 4]}
-        intensity={2.5}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
+    <div className="relative h-full w-full">
+      <Canvas
+        camera={{ position: cameraPosition, fov: 70, near: 0.1, far: 2000 }}
+        shadows
+        dpr={[1, 2]}
+        // Set touch-action once at setup so touch drags orbit instead of
+        // scrolling the page (callback param, not an effect mutating gl.domElement).
+        onCreated={({ gl }) => {
+          gl.domElement.style.touchAction = "none";
+        }}
+      >
+        <DrawCallProbe />
+
+        <hemisphereLight args={["#bfd4ff", "#1a1a2e", 0.7]} />
+        <ambientLight intensity={0.3} />
+        <directionalLight
+          position={[size * 0.6, size, size * 0.3]}
+          intensity={2.2}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+        />
+
+        {chunkEntries.map(({ chunk, origin }) => {
+          const { cx, cy, cz } = worldToChunkCoord(origin.x, origin.y, origin.z);
+          const key = chunkKey(cx, cy, cz);
+          return (
+            <ChunkMesh
+              key={key}
+              chunk={chunk}
+              origin={origin}
+              atlas={atlas}
+              version={gameStore.getChunkVersion(key)}
+            />
+          );
+        })}
+
+        <PlayerController
+          ref={controllerRef}
+          world={store.generated.world}
+          spawn={spawnPosition}
+          onLockStateChange={setLockState}
+        />
+
+        <BlockTargeting store={gameStore} />
+      </Canvas>
+
+      <CrosshairOverlay visible={lockState === "playing"} />
+      <HotbarHud store={gameStore} />
+
+      <LockOverlay
+        state={lockState}
+        onRequestLock={requestLock}
+        onDismissDenied={dismissDenied}
       />
-
-      <DragToRotate>
-        <mesh castShadow>
-          <boxGeometry args={[1.5, 1.5, 1.5]} />
-          <meshStandardMaterial color="#5b8def" roughness={0.35} metalness={0.1} />
-        </mesh>
-      </DragToRotate>
-
-      {/* Ground plane to catch the shadow and give the cube a sense of place. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.2, 0]} receiveShadow>
-        <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color="#12122a" />
-      </mesh>
-    </Canvas>
+      <ControlsLegend />
+    </div>
   );
 }
