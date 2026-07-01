@@ -115,6 +115,61 @@ function paintGrassBottom(ctx: CanvasRenderingContext2D, x0: number, y0: number,
   paintDirt(ctx, x0, y0, size);
 }
 
+const CAT_FACE_PATCH: RGB = [224, 196, 160];
+const CAT_FACE_PATCH_DARK: RGB = [204, 172, 136];
+const CAT_EAR: RGB = [64, 44, 32];
+const CAT_EYE: RGB = [24, 22, 26];
+const CAT_NOSE: RGB = [219, 128, 148];
+
+/**
+ * The rare (~1/40, see `~/game/render/cat-grass.ts`) cosmetic grass-top
+ * variant: a small pixel-art cat face (ears, face patch, eyes, nose,
+ * whisker dots) painted over the same speckled grass-green base as
+ * `paintGrassTop`. Purely decorative — the underlying block is still
+ * ordinary Grass (see `atlas-layout.ts`'s `getCatGrassFaceTiles`).
+ */
+function paintCatFaceGrassTop(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  size: number,
+): void {
+  paintGrassTop(ctx, x0, y0, size);
+
+  const px = (fx: number) => x0 + Math.round(fx * size);
+  const py = (fy: number) => y0 + Math.round(fy * size);
+  const rect = (
+    fx0: number,
+    fy0: number,
+    fx1: number,
+    fy1: number,
+    color: RGB,
+  ) => {
+    const xa = px(fx0);
+    const ya = py(fy0);
+    const xb = px(fx1);
+    const yb = py(fy1);
+    ctx.fillStyle = toCss(color);
+    ctx.fillRect(xa, ya, Math.max(1, xb - xa), Math.max(1, yb - ya));
+  };
+
+  // Face patch.
+  rect(0.18, 0.25, 0.82, 0.86, CAT_FACE_PATCH);
+  // Ears (outer silhouette + a lighter inner-ear patch).
+  rect(0.14, 0.04, 0.4, 0.3, CAT_EAR);
+  rect(0.6, 0.04, 0.86, 0.3, CAT_EAR);
+  rect(0.21, 0.11, 0.37, 0.27, CAT_FACE_PATCH_DARK);
+  rect(0.63, 0.11, 0.79, 0.27, CAT_FACE_PATCH_DARK);
+  // Eyes.
+  rect(0.28, 0.4, 0.42, 0.53, CAT_EYE);
+  rect(0.58, 0.4, 0.72, 0.53, CAT_EYE);
+  // Nose.
+  rect(0.43, 0.58, 0.57, 0.68, CAT_NOSE);
+  // Whisker dots.
+  rect(0.06, 0.6, 0.2, 0.65, CAT_EYE);
+  rect(0.8, 0.6, 0.94, 0.65, CAT_EYE);
+}
+
 /** Dirt body with a green "fringe" along the top rows (grass poking over the edge). */
 function paintGrassSide(ctx: CanvasRenderingContext2D, x0: number, y0: number, size: number): void {
   paintDirt(ctx, x0, y0, size);
@@ -176,6 +231,7 @@ const TILE_PAINTERS: Record<
   grass_bottom: paintGrassBottom,
   wood_top: paintWoodTop,
   wood_side: paintWoodSide,
+  cat_face_grass_top: paintCatFaceGrassTop,
 };
 
 /** Build the runtime atlas texture. Must only be called client-side. */
