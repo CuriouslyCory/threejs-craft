@@ -1,0 +1,42 @@
+{
+  "$comment": "Correct import paths for common three addons and TSL, per renderer path. Keys are what you type; values are the resolved module. For bundler projects (Vite), import the specifier directly. For the no-bundler template, add the CDN entries from version-map.json.cdnImportmap to your <script type=\"importmap\">.",
+  "shared": {
+    "OrbitControls": "three/addons/controls/OrbitControls.js",
+    "MapControls": "three/addons/controls/MapControls.js",
+    "TransformControls": "three/addons/controls/TransformControls.js",
+    "GLTFLoader": "three/addons/loaders/GLTFLoader.js",
+    "DRACOLoader": "three/addons/loaders/DRACOLoader.js",
+    "KTX2Loader": "three/addons/loaders/KTX2Loader.js",
+    "MeshoptDecoder": "three/addons/libs/meshopt_decoder.module.js",
+    "RGBELoader": "three/addons/loaders/RGBELoader.js",
+    "EXRLoader": "three/addons/loaders/EXRLoader.js",
+    "OBJLoader": "three/addons/loaders/OBJLoader.js",
+    "FBXLoader": "three/addons/loaders/FBXLoader.js",
+    "USDZLoader": "three/addons/loaders/USDZLoader.js",
+    "RoomEnvironment": "three/addons/environments/RoomEnvironment.js",
+    "GLTFExporter": "three/addons/exporters/GLTFExporter.js",
+    "Stats": "three/addons/libs/stats.module.js",
+    "GUI (lil-gui)": "three/addons/libs/lil-gui.module.min.js"
+  },
+  "webglOnly": {
+    "$comment": "EffectComposer + passes are the WebGLRenderer post-processing path. Do NOT use these with WebGPURenderer.",
+    "EffectComposer": "three/addons/postprocessing/EffectComposer.js",
+    "RenderPass": "three/addons/postprocessing/RenderPass.js",
+    "UnrealBloomPass": "three/addons/postprocessing/UnrealBloomPass.js",
+    "OutputPass": "three/addons/postprocessing/OutputPass.js",
+    "ShaderPass": "three/addons/postprocessing/ShaderPass.js",
+    "SMAAPass": "three/addons/postprocessing/SMAAPass.js"
+  },
+  "webgpuOnly": {
+    "$comment": "WebGPU uses core imports from 'three/webgpu' and node/TSL helpers from 'three/tsl'. Node post-processing comes from the webgpu bundle, not the addons/postprocessing folder.",
+    "core": "import * as THREE from 'three/webgpu'",
+    "tsl": "import { Fn, uniform, vec3, texture, positionWorld, normalWorld, uv, mix, sin, time } from 'three/tsl'",
+    "PostProcessing": "from 'three/webgpu' (THREE.PostProcessing)",
+    "passNodes": "TSL pass()/mrt() helpers from 'three/tsl'; bloom via three/addons/tsl/display/BloomNode.js (import { bloom } from ...)"
+  },
+  "decoderHosting": {
+    "$comment": "Draco and KTX2 need external decoder binaries. Point the loaders at a hosted copy. jsDelivr paths shown; you can also copy node_modules/three/examples/jsm/libs/{draco,basis}/ into your public/ folder and host locally.",
+    "draco": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/libs/draco/",
+    "ktx2Basis": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/libs/basis/"
+  }
+}

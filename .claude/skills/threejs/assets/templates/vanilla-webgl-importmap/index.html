@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>three.js — vanilla WebGL (import map, no bundler)</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #111318;
+      }
+      #app {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+
+    <!--
+      Import map: pins bare specifiers ("three", "three/addons/*") to exact CDN URLs.
+      Values copied verbatim from assets/reference-data/version-map.json -> cdnImportmap.
+      Pin the version here explicitly rather than "latest" so this template stays
+      reproducible. Note the trailing slash on "three/addons/" — it's a *prefix* mapping,
+      so "three/addons/controls/OrbitControls.js" resolves against the CDN's
+      examples/jsm/ folder.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="app"></canvas>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
