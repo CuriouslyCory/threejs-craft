@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# We run CodeRabbit manually via the CLI, so the GitHub app's automatic
+# PR reviews are disabled here. CLI reviews are unaffected by this setting.
+reviews:
+  auto_review:
+    enabled: false
