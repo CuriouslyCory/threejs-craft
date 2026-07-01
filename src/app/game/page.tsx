@@ -13,9 +13,11 @@ export default function GamePage() {
     <main className="relative h-dvh w-full bg-[#15162c] text-white">
       <div className="pointer-events-none absolute left-0 top-0 z-10 p-6">
         <h1 className="text-2xl font-bold tracking-tight">
-          <span className="text-[hsl(280,100%,70%)]">/game</span> — three.js canvas
+          <span className="text-[hsl(280,100%,70%)]">/game</span> — static world
         </h1>
-        <p className="text-sm text-white/70">Drag anywhere to rotate the cube.</p>
+        <p className="text-sm text-white/70">
+          Drag to orbit, scroll to zoom — the seeded 48×48 terrain and trees.
+        </p>
       </div>
       <GameScene />
     </main>

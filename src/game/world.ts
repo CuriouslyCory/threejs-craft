@@ -6,7 +6,18 @@
 
 import { BlockType, type BlockTypeId } from "~/game/blocks";
 import { Chunk } from "~/game/chunk";
-import { chunkKey, worldToChunkCoord, worldToLocalCoord } from "~/game/coords";
+import {
+  chunkKey,
+  parseChunkKey,
+  worldToChunkCoord,
+  worldToLocalCoord,
+  type ChunkCoord,
+} from "~/game/coords";
+
+/** A loaded chunk paired with the chunk coordinate it lives at. */
+export interface ChunkEntry extends ChunkCoord {
+  readonly chunk: Chunk;
+}
 
 export class World {
   private readonly chunks = new Map<string, Chunk>();
@@ -18,6 +29,19 @@ export class World {
 
   getChunk(cx: number, cy: number, cz: number): Chunk | undefined {
     return this.chunks.get(chunkKey(cx, cy, cz));
+  }
+
+  /**
+   * Every currently-loaded chunk, paired with its chunk coordinate. Read-only
+   * snapshot (a new array each call) — used by the render layer (#6) to
+   * enumerate exactly the chunks that have content, without the render layer
+   * needing to know anything about world size/height bounds.
+   */
+  chunkEntries(): ChunkEntry[] {
+    return Array.from(this.chunks.entries(), ([key, chunk]) => ({
+      ...parseChunkKey(key),
+      chunk,
+    }));
   }
 
   /** Get or create the chunk at the given chunk coordinate. */

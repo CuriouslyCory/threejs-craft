@@ -56,3 +56,14 @@ export function worldToLocalCoord(
 export function chunkKey(cx: number, cy: number, cz: number): string {
   return `${cx},${cy},${cz}`;
 }
+
+/**
+ * Reverse of `chunkKey` — recovers the chunk coordinate from a key produced
+ * by it. Used by `World.chunkEntries()` so callers (the render layer) can
+ * enumerate loaded chunks with their coordinates without `World` needing to
+ * store coordinates redundantly alongside its `Map` keys.
+ */
+export function parseChunkKey(key: string): ChunkCoord {
+  const [cxRaw, cyRaw, czRaw] = key.split(",");
+  return { cx: Number(cxRaw), cy: Number(cyRaw), cz: Number(czRaw) };
+}
