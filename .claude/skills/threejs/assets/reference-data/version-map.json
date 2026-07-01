@@ -1,0 +1,56 @@
+{
+  "$comment": "Single source of truth for version pins and import specifiers. Regenerate the 'pins' block with scripts/doctor.mjs against the installed node_modules. 'latestKnown' reflects what this skill was authored against; treat the installed version (from doctor.mjs) as ground truth and use scripts/docs_lookup.mjs for any signature not covered in a reference file.",
+  "latestKnown": {
+    "asOf": "2026-07",
+    "three": "0.185.1",
+    "threeRelease": "r185",
+    "@react-three/fiber": "9.6.1",
+    "@react-three/drei": "10.7.7",
+    "react": "19.2.x",
+    "vite": "7.x"
+  },
+  "peerRequirements": {
+    "@react-three/fiber@9": { "three": ">=0.156", "react": ">=19 <19.3", "react-dom": ">=19 <19.3" },
+    "@react-three/drei@10": { "three": ">=0.159", "@react-three/fiber": "^9.0.0", "react": "^19", "react-dom": "^19" }
+  },
+  "importSpecifiers": {
+    "$comment": "three's package.json 'exports' map as of r185. Never deep-import build files directly; always use these specifiers.",
+    "core-webgl": "three",
+    "core-webgpu": "three/webgpu",
+    "tsl": "three/tsl",
+    "addons": "three/addons/*",
+    "addonsBarrel": "three/addons",
+    "examplesJsm": "three/examples/jsm/*"
+  },
+  "cdnImportmap": {
+    "$comment": "For the vanilla-webgl-importmap (no-bundler) template. Pin the exact version. jsDelivr and esm.sh both work; jsDelivr shown. Note: 'three/addons/' resolves via the trailing-slash mapping to the examples/jsm folder on the CDN.",
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/",
+    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.webgpu.js",
+    "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.tsl.js"
+  },
+  "docsResources": {
+    "$comment": "As of r185 the official three.js docs are LLM-first. Prefer these over guessing a signature; scripts/docs_lookup.mjs wraps them. Per-class pages are clean markdown. The raw.githubusercontent URLs are stable and greppable.",
+    "perClassMarkdown": "https://threejs.org/docs/pages/<ClassName>.html.md",
+    "searchIndex": "https://raw.githubusercontent.com/mrdoob/three.js/master/docs/search.json",
+    "tslReference": "https://raw.githubusercontent.com/mrdoob/three.js/master/docs/TSL.md",
+    "llmsIndex": "https://raw.githubusercontent.com/mrdoob/three.js/master/docs/llms.txt",
+    "llmsFull": "https://raw.githubusercontent.com/mrdoob/three.js/master/docs/llms-full.txt",
+    "docsSite": "https://threejs.org/docs/",
+    "migrationGuide": "https://github.com/mrdoob/three.js/wiki/Migration-Guide"
+  },
+  "breakingChangesHighSignal": {
+    "$comment": "High-confidence, stable facts an emitter must not get wrong. This is NOT the full migration guide — for anything version-specific or uncertain, run scripts/docs_lookup.mjs or read https://github.com/mrdoob/three.js/wiki/Migration-Guide.",
+    "removedLongAgo": [
+      "Geometry (use BufferGeometry)",
+      "Face3",
+      "JSONLoader",
+      "THREE.Geometry-based vertex/face APIs",
+      "CinematicCamera (moved out / removed from core paths)"
+    ],
+    "colorManagement": "THREE.ColorManagement is enabled by default since r152. renderer.outputColorSpace defaults to SRGBColorSpace. Set colorSpace=SRGBColorSpace on color textures (albedo/emissive/env); leave data textures (normal/roughness/metalness/AO) in NoColorSpace/LinearSRGBColorSpace.",
+    "renderLoop": "Use renderer.setAnimationLoop(fn) rather than a hand-rolled requestAnimationFrame loop. It is mandatory for WebGPU (async device) and WebXR (XR frame timing).",
+    "webgpu": "Since r171 'three/webgpu' WebGPURenderer is production-ready with automatic WebGL2 fallback. ShaderMaterial / RawShaderMaterial / onBeforeCompile are NOT supported on WebGPURenderer — use node materials + TSL. EffectComposer passes are replaced by the node post-processing stack (PostProcessing + pass nodes).",
+    "sRGBEncoding": "The legacy *Encoding enums (sRGBEncoding, LinearEncoding) and texture.encoding are gone. Use texture.colorSpace and renderer.outputColorSpace with the *ColorSpace constants."
+  }
+}
