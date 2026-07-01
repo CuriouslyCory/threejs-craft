@@ -52,8 +52,17 @@ export function worldToLocalCoord(
   return { lx: worldToLocal(x), ly: worldToLocal(y), lz: worldToLocal(z) };
 }
 
+/**
+ * A `chunkKey(...)` return value — the frozen `Command`/`CommandResult`
+ * contract (`src/game/command.ts`, #8) uses this as its `changed`/dirty-chunk
+ * identifier. It's a plain string under the hood (see `chunkKey` below); the
+ * alias exists so call sites can say "this is a chunk key" in their types
+ * without repeating that comment.
+ */
+export type ChunkKey = string;
+
 /** Stable, human-readable key identifying a chunk, safe to use as a Map key. */
-export function chunkKey(cx: number, cy: number, cz: number): string {
+export function chunkKey(cx: number, cy: number, cz: number): ChunkKey {
   return `${cx},${cy},${cz}`;
 }
 
@@ -63,7 +72,7 @@ export function chunkKey(cx: number, cy: number, cz: number): string {
  * enumerate loaded chunks with their coordinates without `World` needing to
  * store coordinates redundantly alongside its `Map` keys.
  */
-export function parseChunkKey(key: string): ChunkCoord {
+export function parseChunkKey(key: ChunkKey): ChunkCoord {
   const [cxRaw, cyRaw, czRaw] = key.split(",");
   return { cx: Number(cxRaw), cy: Number(cyRaw), cz: Number(czRaw) };
 }

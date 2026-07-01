@@ -14,11 +14,15 @@
  */
 
 import { Canvas, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { chunkKey, worldToChunkCoord } from "~/game/coords";
 import { EYE_HEIGHT } from "~/game/player/step-player";
 import { createBlockAtlas } from "~/game/render/atlas";
+import { BlockTargeting } from "~/game/render/block-target";
 import { ChunkMesh } from "~/game/render/chunk-mesh";
+import { CrosshairOverlay } from "~/game/render/crosshair-overlay";
+import { HotbarHud } from "~/game/render/hotbar-hud";
 import { LockOverlay } from "~/game/render/lock-overlay";
 import {
   PlayerController,
@@ -26,6 +30,7 @@ import {
   type PlayerControllerHandle,
 } from "~/game/render/player-controller";
 import { createLocalWorldStore } from "~/game/store/local-world-store";
+import { createGameStore } from "~/game/store/world-store";
 import { GROUND_SURFACE_Y, generateWorld } from "~/game/worldgen";
 
 /** Fixed seed — the acceptance bar is "identical every load," not variety. */
@@ -62,8 +67,27 @@ export default function GameScene() {
   const atlas = useMemo(() => createBlockAtlas(), []);
   useEffect(() => () => atlas.texture.dispose(), [atlas]);
 
+  // #8's mutation/notification store, layered on top of #6's read-only
+  // `store.generated.world`. Memoized so it (and the world it wraps) live
+  // for the whole component lifetime, not re-created per render.
+  const gameStore = useMemo(
+    () => createGameStore(store.generated.world),
+    [store],
+  );
+  // Subscribing here is what makes `apply()` (called from `BlockTargeting`
+  // on a break) actually cause a React re-render at all — without it,
+  // `chunkVersion` below would never observe the bump `apply` wrote into
+  // `gameStore`. This is a discrete, user-driven re-render (a click), not a
+  // per-frame one, so it doesn't regress #7's zero-setState-per-frame rule.
+  useSyncExternalStore(gameStore.subscribe, gameStore.getVersionSnapshot);
+
   const { size, spawn } = store.generated;
-  const chunkEntries = store.source.chunkEntries();
+  // Memoized (not called fresh in the render body) so `chunk`/`origin`
+  // object identity stays stable across re-renders — required for
+  // `ChunkMesh`'s `useMemo` (keyed on `[chunk, origin, version]`) to only
+  // recompute the *actually dirty* chunk when `gameStore`'s version bumps,
+  // rather than every chunk on every re-render.
+  const chunkEntries = useMemo(() => store.source.chunkEntries(), [store]);
 
   // Center the player in the spawn column's footprint (worldgen's `spawn`
   // is an integer voxel coordinate) and stand it on the grass top face.
@@ -115,14 +139,19 @@ export default function GameScene() {
           shadow-mapSize={[1024, 1024]}
         />
 
-        {chunkEntries.map(({ chunk, origin }) => (
-          <ChunkMesh
-            key={`${origin.x},${origin.y},${origin.z}`}
-            chunk={chunk}
-            origin={origin}
-            atlas={atlas}
-          />
-        ))}
+        {chunkEntries.map(({ chunk, origin }) => {
+          const { cx, cy, cz } = worldToChunkCoord(origin.x, origin.y, origin.z);
+          const key = chunkKey(cx, cy, cz);
+          return (
+            <ChunkMesh
+              key={key}
+              chunk={chunk}
+              origin={origin}
+              atlas={atlas}
+              version={gameStore.getChunkVersion(key)}
+            />
+          );
+        })}
 
         <PlayerController
           ref={controllerRef}
@@ -130,7 +159,12 @@ export default function GameScene() {
           spawn={spawnPosition}
           onLockStateChange={setLockState}
         />
+
+        <BlockTargeting store={gameStore} />
       </Canvas>
+
+      <CrosshairOverlay visible={lockState === "playing"} />
+      <HotbarHud store={gameStore} />
 
       <LockOverlay
         state={lockState}
