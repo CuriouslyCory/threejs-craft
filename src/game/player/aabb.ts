@@ -83,6 +83,27 @@ export function boxIntersectsSolid(world: VoxelWorld, box: Box3): boolean {
   return false;
 }
 
+/**
+ * True if two axis-aligned boxes overlap in volume. Strict inequalities on
+ * every axis, so two boxes merely touching along a shared face (e.g. a
+ * candidate placement cell flush against the player's collision box, not
+ * inside it) are **not** considered overlapping — consistent with
+ * `boxIntersectsSolid`'s "actually occupies space" semantics. Used by #9's
+ * `canPlace` (`command.ts`) to reject a placement that would clip the
+ * player, reusing this AABB module rather than reimplementing box-box
+ * overlap in the domain layer.
+ */
+export function boxesOverlap(a: Box3, b: Box3): boolean {
+  return (
+    a.min.x < b.max.x &&
+    a.max.x > b.min.x &&
+    a.min.y < b.max.y &&
+    a.max.y > b.min.y &&
+    a.min.z < b.max.z &&
+    a.max.z > b.min.z
+  );
+}
+
 export interface SweepResult {
   /** The (possibly clamped) delta actually safe to apply along this axis. */
   readonly delta: number;

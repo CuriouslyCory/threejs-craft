@@ -22,7 +22,12 @@ import {
   type Vec3,
 } from "~/game/command";
 import type { ChunkKey } from "~/game/coords";
-import { createInventory, type Inventory } from "~/game/inventory";
+import {
+  createInventory,
+  cycleSelection as cycleInventorySelection,
+  selectSlot as selectInventorySlot,
+  type Inventory,
+} from "~/game/inventory";
 import type { World } from "~/game/world";
 
 export class GameStore {
@@ -44,14 +49,23 @@ export class GameStore {
     this.inventory = inventory;
   }
 
-  /** Apply a command against this store's world + inventory. */
-  apply(command: Command, from: Vec3, reach: number = DEFAULT_REACH): CommandResult {
+  /** Apply a command against this store's world + inventory. `playerPosition`
+   *  (feet position) is only consulted for `PlaceBlock`'s player-clip check
+   *  — see `applyCommand`'s doc comment — and defaults to `from` so
+   *  `BreakBlock` call sites don't need to pass it. */
+  apply(
+    command: Command,
+    from: Vec3,
+    reach: number = DEFAULT_REACH,
+    playerPosition: Vec3 = from,
+  ): CommandResult {
     const { result, inventory } = applyCommand(
       this.world,
       this.inventory,
       command,
       from,
       reach,
+      playerPosition,
     );
 
     if (result.ok) {
@@ -64,6 +78,30 @@ export class GameStore {
     }
 
     return result;
+  }
+
+  /** Select a hotbar slot by absolute index (number keys 1-6 -> 0..5).
+   *  Notifies subscribers (the HUD) when the selection actually changes;
+   *  a no-op index change doesn't bump `version` or notify, matching
+   *  `apply`'s "only notify on a real change" behavior. */
+  selectSlot(index: number): void {
+    const next = selectInventorySlot(this.inventory, index);
+    if (next === this.inventory) {
+      return;
+    }
+    this.inventory = next;
+    this.notify();
+  }
+
+  /** Cycle the hotbar selection by `delta`'s sign, wrapping at both ends
+   *  (mouse wheel). Same no-op/notify semantics as `selectSlot`. */
+  cycleSelection(delta: number): void {
+    const next = cycleInventorySelection(this.inventory, delta);
+    if (next === this.inventory) {
+      return;
+    }
+    this.inventory = next;
+    this.notify();
   }
 
   /** Current version of a given chunk — 0 if it's never been dirtied. */

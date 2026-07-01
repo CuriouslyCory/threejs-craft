@@ -17,8 +17,13 @@
 
 import { BlockRegistry, BlockType, isSolid } from "~/game/blocks";
 import { chunkKey, worldToChunkCoord, type ChunkKey } from "~/game/coords";
-import { addDrop, type Inventory } from "~/game/inventory";
-import type { Vec3 } from "~/game/player/aabb";
+import { addDrop, consumeSelected, type Inventory } from "~/game/inventory";
+import { boxFromFeetPosition, boxesOverlap, type Box3, type Vec3 } from "~/game/player/aabb";
+import {
+  PLAYER_DEPTH,
+  PLAYER_HEIGHT,
+  PLAYER_WIDTH,
+} from "~/game/player/step-player";
 import type { World } from "~/game/world";
 
 export type { Vec3 } from "~/game/player/aabb";
@@ -73,18 +78,39 @@ export function canBreak(
   return null;
 }
 
+/** The world-space unit-cube box a block placed at `at` would occupy. */
+function cellBox(at: Vec3): Box3 {
+  return {
+    min: { x: at.x, y: at.y, z: at.z },
+    max: { x: at.x + 1, y: at.y + 1, z: at.z + 1 },
+  };
+}
+
+/** Extra context `canPlace` needs beyond reach: which block is being
+ *  placed, the inventory it must come from, and the player's own collision
+ *  box (so a placement can't clip the player standing next to it). */
+export interface PlaceContext {
+  readonly block: BlockType;
+  readonly inventory: Inventory;
+  readonly playerBox: Box3;
+}
+
 /**
- * Pure validation for `PlaceBlock`. Minimal for #8 (only reach + "target
- * must not already be solid" are checked) — #9 completes this with the real
- * inventory-has-the-block ("NotInInventory") check once slot selection is
- * wired up. Exported now so #9 extends this function rather than
- * reinventing it.
+ * Pure validation for `PlaceBlock`: out of `reach`, target cell already
+ * solid, the selected hotbar slot doesn't actually hold `block`, or the
+ * placement would clip the player's own AABB (`#7`'s 0.6x1.8x0.6 box —
+ * reused via `boxesOverlap`/`boxFromFeetPosition` rather than
+ * reimplemented). The issue treats player-clip as "no-op, no crash" rather
+ * than a distinct rejection reason, so it reuses `Occupied` — the closest
+ * of the four frozen `CommandResult` reasons ("this cell can't be placed
+ * into right now").
  */
 export function canPlace(
   world: WorldReader,
   at: Vec3,
   from: Vec3,
   reach: number,
+  context: PlaceContext,
 ): RejectReason | null {
   if (distance(at, from) > reach) {
     return "OutOfRange";
@@ -92,8 +118,13 @@ export function canPlace(
   if (isSolid(world.getBlock(at.x, at.y, at.z))) {
     return "Occupied";
   }
-  // TODO(#9): check the selected hotbar slot actually holds `block` and
-  // return "NotInInventory" if not.
+  const slot = context.inventory.slots[context.inventory.selected];
+  if (slot?.block !== context.block || (slot?.count ?? 0) <= 0) {
+    return "NotInInventory";
+  }
+  if (boxesOverlap(cellBox(at), context.playerBox)) {
+    return "Occupied";
+  }
   return null;
 }
 
@@ -112,13 +143,14 @@ function chunkKeyForVec3(at: Vec3): ChunkKey {
 /**
  * Apply a `Command` against `world`/`inventory`. Built entirely on
  * `canBreak`/`canPlace` above plus `World.getBlock`/`setBlock` and
- * `inventory.addDrop` — no logic is duplicated here beyond wiring those
- * together and computing the dirty `changed` chunk key.
+ * `inventory.addDrop`/`consumeSelected` — no logic is duplicated here
+ * beyond wiring those together and computing the dirty `changed` chunk key.
  *
- * `PlaceBlock` is a **typed TODO for #9**: the case exists (so `Command`'s
- * type stays frozen and exhaustive) but never returns `ok: true` yet — #9
- * fills in the actual `setBlock` + inventory-decrement + `changed` once
- * hotbar selection is wired to a real "which block am I placing" source.
+ * `playerPosition` (feet position, distinct from `from`'s reach-origin/eye
+ * position) is only read by the `PlaceBlock` branch, to build the player's
+ * collision box for `canPlace`'s clip check; it defaults to `from` so
+ * `BreakBlock`-only callers (and #8's existing tests) don't need to pass
+ * it.
  */
 export function applyCommand(
   world: World,
@@ -126,6 +158,7 @@ export function applyCommand(
   command: Command,
   from: Vec3,
   reach: number = DEFAULT_REACH,
+  playerPosition: Vec3 = from,
 ): ApplyResult {
   switch (command.type) {
     case "BreakBlock": {
@@ -150,11 +183,28 @@ export function applyCommand(
       };
     }
     case "PlaceBlock": {
-      // TODO(#9): implement placement. `canPlace` above already covers reach
-      // + occupied; #9 adds the inventory check and, on success, `setBlock`
-      // + a matching inventory decrement + the dirty `changed` chunk key.
-      const reason = canPlace(world, command.at, from, reach) ?? "Occupied";
-      return { result: { ok: false, reason }, inventory };
+      const playerBox = boxFromFeetPosition(
+        playerPosition,
+        PLAYER_WIDTH,
+        PLAYER_HEIGHT,
+        PLAYER_DEPTH,
+      );
+      const reason = canPlace(world, command.at, from, reach, {
+        block: command.block,
+        inventory,
+        playerBox,
+      });
+      if (reason) {
+        return { result: { ok: false, reason }, inventory };
+      }
+
+      world.setBlock(command.at.x, command.at.y, command.at.z, command.block);
+      const { inventory: nextInventory } = consumeSelected(inventory);
+
+      return {
+        result: { ok: true, changed: [chunkKeyForVec3(command.at)] },
+        inventory: nextInventory,
+      };
     }
   }
 }

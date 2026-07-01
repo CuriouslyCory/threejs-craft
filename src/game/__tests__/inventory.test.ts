@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import { BlockType } from "~/game/blocks";
 import {
   addDrop,
+  consumeSelected,
   createInventory,
+  cycleSelection,
   HOTBAR_SIZE,
+  selectSlot,
   STACK_CAP,
 } from "~/game/inventory";
 
@@ -91,5 +94,104 @@ describe("addDrop", () => {
     expect(inventory.slots.some((slot) => slot.block === seventhType)).toBe(
       false,
     );
+  });
+});
+
+describe("selectSlot", () => {
+  it("selects a valid index in range", () => {
+    const inventory = selectSlot(createInventory(), 3);
+    expect(inventory.selected).toBe(3);
+  });
+
+  it("clamps an index above the valid range to the last slot", () => {
+    const inventory = selectSlot(createInventory(), 99);
+    expect(inventory.selected).toBe(HOTBAR_SIZE - 1);
+  });
+
+  it("clamps a negative index to slot 0", () => {
+    const inventory = selectSlot(createInventory(), -1);
+    expect(inventory.selected).toBe(0);
+  });
+
+  it("returns the same reference when the selection doesn't change", () => {
+    const inventory = createInventory();
+    expect(selectSlot(inventory, 0)).toBe(inventory);
+  });
+});
+
+describe("cycleSelection", () => {
+  it("advances one slot for a positive delta", () => {
+    const inventory = cycleSelection(selectSlot(createInventory(), 2), 1);
+    expect(inventory.selected).toBe(3);
+  });
+
+  it("goes back one slot for a negative delta", () => {
+    const inventory = cycleSelection(selectSlot(createInventory(), 2), -1);
+    expect(inventory.selected).toBe(1);
+  });
+
+  it("wraps from the last slot to the first going up", () => {
+    const inventory = cycleSelection(
+      selectSlot(createInventory(), HOTBAR_SIZE - 1),
+      1,
+    );
+    expect(inventory.selected).toBe(0);
+  });
+
+  it("wraps from the first slot to the last going down", () => {
+    const inventory = cycleSelection(selectSlot(createInventory(), 0), -1);
+    expect(inventory.selected).toBe(HOTBAR_SIZE - 1);
+  });
+
+  it("only the sign of delta matters (large wheel deltaY still moves one slot)", () => {
+    const inventory = cycleSelection(createInventory(), 137.5);
+    expect(inventory.selected).toBe(1);
+  });
+
+  it("is a no-op for delta === 0", () => {
+    const inventory = createInventory();
+    expect(cycleSelection(inventory, 0)).toBe(inventory);
+  });
+});
+
+describe("consumeSelected", () => {
+  it("decrements the selected slot's count by one", () => {
+    const inventory = addDrop(createInventory(), BlockType.Stone); // count: 1
+    const { inventory: next, consumed } = consumeSelected(inventory);
+
+    expect(consumed).toBe(true);
+    expect(next.slots[0]).toEqual({ block: null, count: 0 });
+  });
+
+  it("clears block to null only once the count reaches zero", () => {
+    let inventory = createInventory();
+    inventory = addDrop(inventory, BlockType.Stone);
+    inventory = addDrop(inventory, BlockType.Stone); // count: 2
+
+    const { inventory: next, consumed } = consumeSelected(inventory);
+
+    expect(consumed).toBe(true);
+    expect(next.slots[0]).toEqual({ block: BlockType.Stone, count: 1 });
+  });
+
+  it("no-ops on an already-empty selected slot", () => {
+    const inventory = createInventory();
+    const { inventory: next, consumed } = consumeSelected(inventory);
+
+    expect(consumed).toBe(false);
+    expect(next).toBe(inventory);
+  });
+
+  it("consumes from whichever slot is selected, not always slot 0", () => {
+    let inventory = createInventory();
+    inventory = addDrop(inventory, BlockType.Dirt); // slot 0
+    inventory = addDrop(inventory, BlockType.Stone); // slot 1
+    inventory = selectSlot(inventory, 1);
+
+    const { inventory: next, consumed } = consumeSelected(inventory);
+
+    expect(consumed).toBe(true);
+    expect(next.slots[0]).toEqual({ block: BlockType.Dirt, count: 1 });
+    expect(next.slots[1]).toEqual({ block: null, count: 0 });
   });
 });
