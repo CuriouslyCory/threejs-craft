@@ -8,17 +8,13 @@
  * parallel axis proceed even though the perpendicular axis is blocked.
  */
 
-import { isSolid, type BlockTypeId } from "~/game/blocks";
+import { isSolid } from "~/game/blocks";
+import type { VoxelReader } from "~/game/voxel";
 
 export interface Vec3 {
   readonly x: number;
   readonly y: number;
   readonly z: number;
-}
-
-/** The minimal read surface `aabb.ts`/`step-player.ts` need from a `World`. */
-export interface VoxelWorld {
-  getBlock(x: number, y: number, z: number): BlockTypeId;
 }
 
 export interface Box3 {
@@ -39,21 +35,6 @@ const CONTACT_EPSILON = 1e-4;
 /** Nudge used when scanning which integer voxel layer a box face falls in. */
 const VOXEL_SCAN_EPSILON = 1e-6;
 
-/** Build the player's world-space AABB from its feet-center position. */
-export function boxFromFeetPosition(
-  position: Vec3,
-  width: number,
-  height: number,
-  depth: number,
-): Box3 {
-  const halfW = width / 2;
-  const halfD = depth / 2;
-  return {
-    min: { x: position.x - halfW, y: position.y, z: position.z - halfD },
-    max: { x: position.x + halfW, y: position.y + height, z: position.z + halfD },
-  };
-}
-
 /** Translate a box along a single axis by `delta`. */
 export function translateBox(box: Box3, axis: "x" | "y" | "z", delta: number): Box3 {
   return {
@@ -63,7 +44,7 @@ export function translateBox(box: Box3, axis: "x" | "y" | "z", delta: number): B
 }
 
 /** True if any solid voxel overlaps the given box. */
-export function boxIntersectsSolid(world: VoxelWorld, box: Box3): boolean {
+export function boxIntersectsSolid(world: VoxelReader, box: Box3): boolean {
   const minX = Math.floor(box.min.x + VOXEL_SCAN_EPSILON);
   const maxX = Math.ceil(box.max.x - VOXEL_SCAN_EPSILON) - 1;
   const minY = Math.floor(box.min.y + VOXEL_SCAN_EPSILON);
@@ -118,7 +99,7 @@ export interface SweepResult {
  * along a wall keeps working even when the perpendicular axis is blocked.
  */
 export function sweepAxis(
-  world: VoxelWorld,
+  world: VoxelReader,
   box: Box3,
   axis: "x" | "y" | "z",
   delta: number,

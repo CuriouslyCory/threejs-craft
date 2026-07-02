@@ -31,7 +31,7 @@ import {
   stepPlayer,
   type PlayerInput,
   type PlayerState,
-  type VoxelWorld,
+  type VoxelReader,
 } from "~/game/player/step-player";
 
 export type LockState = "start" | "playing" | "paused" | "denied";
@@ -43,7 +43,7 @@ export interface PlayerControllerHandle {
 }
 
 export interface PlayerControllerProps {
-  readonly world: VoxelWorld;
+  readonly world: VoxelReader;
   readonly spawn: { readonly x: number; readonly y: number; readonly z: number };
   readonly onLockStateChange: (state: LockState) => void;
 }

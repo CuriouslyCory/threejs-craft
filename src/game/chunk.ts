@@ -7,8 +7,10 @@
  */
 
 import { BlockType, type BlockTypeId } from "~/game/blocks";
+import { CHUNK_SIZE } from "~/game/coords";
 
-export const CHUNK_SIZE = 16;
+export { CHUNK_SIZE };
+
 const CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 /** Flat index for a local (0..15) voxel coordinate within a chunk. */

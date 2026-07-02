@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   boxesOverlap,
-  boxFromFeetPosition,
   boxIntersectsSolid,
   sweepAxis,
   translateBox,
 } from "~/game/player/aabb";
+import { boxFromFeetPosition } from "~/game/player/player-box";
 import { BlockType } from "~/game/blocks";
 import { World } from "~/game/world";
 
