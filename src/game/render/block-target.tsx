@@ -18,9 +18,10 @@
  * crosshair while locked.
  *
  * **InstancedMesh → block coord**: candidates are every `InstancedMesh` the
- * chunk renderer tagged with `userData.instanceToCoord` (`chunk-mesh.tsx`,
- * #6). `intersection.instanceId` indexes that map to recover the hit
- * instance's world-space block coordinate (`references/interaction.md` →
+ * chunk renderer registered with `instance-picking.ts`'s typed WeakMap-backed
+ * picking contract (`chunk-mesh.tsx`'s `attachInstancePicking`, #6/#16).
+ * `intersection.instanceId` resolves back to the hit instance's world-space
+ * block coordinate via `readInstanceCoord` (`references/interaction.md` →
  * "Reading an intersection result": "`hit.instanceId` — set when
  * `hit.object` is an `InstancedMesh`").
  *
@@ -52,7 +53,10 @@ import * as THREE from "three";
 
 import { DEFAULT_REACH, type Vec3 } from "~/game/command";
 import { EYE_HEIGHT } from "~/game/player/step-player";
-import type { InstanceToCoordMap } from "~/game/render/chunk-mesh";
+import {
+  isPickableInstancedMesh,
+  readInstanceCoord,
+} from "~/game/render/instance-picking";
 import type { WorldStore } from "~/game/store/world-store";
 
 /** Reused every frame — screen-center NDC never changes. */
@@ -67,23 +71,6 @@ const DIGIT_TO_SLOT: Record<string, number> = {
   Digit5: 4,
   Digit6: 5,
 };
-
-/** An `InstancedMesh` tagged by `chunk-mesh.tsx` with the `userData` #8 needs
- *  to resolve a hit instance back to a world-space block coordinate. */
-interface PickableInstancedMesh extends THREE.InstancedMesh {
-  userData: THREE.InstancedMesh["userData"] & {
-    instanceToCoord?: InstanceToCoordMap;
-  };
-}
-
-function isPickableInstancedMesh(
-  object: THREE.Object3D,
-): object is PickableInstancedMesh {
-  return (
-    (object as Partial<THREE.InstancedMesh>).isInstancedMesh === true &&
-    "instanceToCoord" in object.userData
-  );
-}
 
 /** Slightly larger than a unit block so the outline doesn't z-fight with
  *  the targeted block's own faces. */
@@ -132,8 +119,10 @@ export function BlockTargeting({ store }: BlockTargetingProps) {
     let target: Vec3 | null = null;
     let placeAt: Vec3 | null = null;
     if (hit && hit.distance <= DEFAULT_REACH && hit.instanceId !== undefined) {
-      const mesh = hit.object as PickableInstancedMesh;
-      const coord = mesh.userData.instanceToCoord?.get(hit.instanceId);
+      const coord = readInstanceCoord(
+        hit.object as THREE.InstancedMesh,
+        hit.instanceId,
+      );
       if (coord) {
         target = coord.world;
         const normal = hit.face?.normal;

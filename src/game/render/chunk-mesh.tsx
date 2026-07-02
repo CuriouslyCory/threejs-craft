@@ -22,54 +22,45 @@
  * and cheap regardless (a handful of chunks, a few thousand instances
  * total).
  *
+ * This component is a thin Three.js adapter over `render-plan.ts`'s pure
+ * `buildRenderPlan`: it resolves each plan group's renderer-free geometry
+ * spec to a cached `THREE.BoxGeometry`, writes per-instance matrices, and
+ * attaches the typed instance-id -> block coord picking contract via
+ * `instance-picking.ts`'s `attachInstancePicking` (no `userData`). The
+ * cat-grass split (#11), block-type grouping, and coord-map construction all
+ * live in `render-plan.ts` now — this file owns only geometry/material
+ * caching and Three object lifecycle.
+ *
  * Per-instance matrices are written in `useLayoutEffect` (before paint, so
  * there's no flash of unpositioned instances) via the scratch-`Object3D` +
  * `setMatrixAt` + `instanceMatrix.needsUpdate = true` pattern from
- * `references/geometry.md` → "Instancing — InstancedMesh". Each mesh also
- * gets `mesh.userData.instanceToCoord`, a `Map<instanceId, { local, world
- * }>` — the "instanceId -> block coord" deliverable #8's picking needs.
+ * `references/geometry.md` → "Instancing — InstancedMesh".
  */
 
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { BlockType, type BlockTypeId } from "~/game/blocks";
 import type { Chunk } from "~/game/chunk";
 import type { BlockAtlas } from "~/game/render/atlas";
-import {
-  getBlockFaceTiles,
-  getCatGrassFaceTiles,
-  tileRect,
-  type BoxFaceTiles,
-} from "~/game/render/atlas-layout";
+import { tileRect, type BoxFaceTiles } from "~/game/render/atlas-layout";
 import { remapBoxUV } from "~/game/render/box-uv";
-import { splitCatGrassInstances } from "~/game/render/cat-grass";
+import { attachInstancePicking } from "~/game/render/instance-picking";
 import {
-  computeChunkInstances,
-  type ChunkInstance,
-  type ChunkInstanceGroup,
+  buildRenderPlan,
   type Coord3,
-} from "~/game/render/chunk-instances";
+  type RenderGeometrySpec,
+  type RenderPlanGroup,
+} from "~/game/render/render-plan";
 
-/** `instanceId -> block coord`, exposed on each mesh's `userData` for #8 picking. */
-export interface InstanceCoord {
-  readonly local: Coord3;
-  readonly world: Coord3;
-}
-export type InstanceToCoordMap = ReadonlyMap<number, InstanceCoord>;
-
-// Geometry only depends on block type (the atlas UV mapping is fixed per
-// type, not per chunk/position), so every chunk's InstancedMesh for a given
-// block type shares the same geometry object instead of rebuilding it.
-// App-lifetime cache — fine for this static single-world MVP; a future
-// hot-swappable-atlas feature would need to invalidate it.
-const geometryCache = new Map<BlockTypeId, THREE.BoxGeometry>();
+// Geometry only depends on the plan's geometry spec (the atlas UV mapping is
+// fixed per spec, not per chunk/position), so every chunk's InstancedMesh
+// for a given geometry identity shares the same geometry object instead of
+// rebuilding it. App-lifetime cache — fine for this static single-world
+// MVP; a future hot-swappable-atlas feature would need to invalidate it.
+const geometryCache = new Map<string, THREE.BoxGeometry>();
 
 /** Build a fresh unit `BoxGeometry` whose per-face UVs sample `faceTiles`'s
- *  atlas rectangles (`box-uv.ts`'s per-face remap). Shared by both the
- *  per-block-type cache below and #11's cat-grass variant, which needs a
- *  geometry keyed by "Grass, but a different top tile" rather than by
- *  `BlockTypeId` alone. */
+ *  atlas rectangles (`box-uv.ts`'s per-face remap). */
 function buildFaceMappedGeometry(faceTiles: BoxFaceTiles): THREE.BoxGeometry {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const uvAttribute = geometry.attributes.uv;
@@ -89,24 +80,15 @@ function buildFaceMappedGeometry(faceTiles: BoxFaceTiles): THREE.BoxGeometry {
   return geometry;
 }
 
-function getBlockGeometry(blockType: BlockTypeId): THREE.BoxGeometry {
-  const cached = geometryCache.get(blockType);
+/** Resolve a plan group's renderer-free geometry spec to a cached, shared
+ *  `THREE.BoxGeometry` — built once per `spec.key`, reused across chunks. */
+function resolveGeometry(spec: RenderGeometrySpec): THREE.BoxGeometry {
+  const cached = geometryCache.get(spec.key);
   if (cached) return cached;
 
-  const geometry = buildFaceMappedGeometry(getBlockFaceTiles(blockType));
-  geometryCache.set(blockType, geometry);
+  const geometry = buildFaceMappedGeometry(spec.faceTiles);
+  geometryCache.set(spec.key, geometry);
   return geometry;
-}
-
-// Single shared geometry for the cat-grass variant — same cache-lazily
-// pattern as `geometryCache`/`sharedMaterial` below, keyed separately since
-// it isn't addressable by `BlockTypeId` (it's still `BlockType.Grass`, just
-// with a different top-face tile).
-let catGrassGeometry: THREE.BoxGeometry | undefined;
-
-function getCatGrassGeometry(): THREE.BoxGeometry {
-  catGrassGeometry ??= buildFaceMappedGeometry(getCatGrassFaceTiles());
-  return catGrassGeometry;
 }
 
 // One shared material for the whole app: same atlas texture, same shading,
@@ -124,17 +106,13 @@ function getSharedMaterial(atlas: BlockAtlas): THREE.MeshStandardMaterial {
   return sharedMaterial;
 }
 
-interface BlockTypeInstancesProps {
-  readonly group: ChunkInstanceGroup;
+interface PlanGroupMeshProps {
+  readonly group: RenderPlanGroup;
   readonly geometry: THREE.BoxGeometry;
   readonly material: THREE.Material;
 }
 
-function BlockTypeInstances({
-  group,
-  geometry,
-  material,
-}: BlockTypeInstancesProps) {
+function PlanGroupMesh({ group, geometry, material }: PlanGroupMeshProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
   useLayoutEffect(() => {
@@ -142,7 +120,6 @@ function BlockTypeInstances({
     if (!mesh) return;
 
     const dummy = new THREE.Object3D();
-    const instanceToCoord = new Map<number, InstanceCoord>();
 
     for (const instance of group.instances) {
       dummy.position.set(
@@ -152,16 +129,11 @@ function BlockTypeInstances({
       );
       dummy.updateMatrix();
       mesh.setMatrixAt(instance.index, dummy.matrix);
-      instanceToCoord.set(instance.index, {
-        local: instance.local,
-        world: instance.world,
-      });
     }
 
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
-    mesh.userData.instanceToCoord = instanceToCoord as InstanceToCoordMap;
-    mesh.userData.blockType = group.blockType;
+    attachInstancePicking(mesh, group.instanceToCoord); // typed; no userData
   }, [group]);
 
   return (
@@ -185,7 +157,7 @@ export interface ChunkMeshProps {
    * so its object identity never changes when a block breaks — `useMemo`
    * below would never see `chunk` as "different" without this. Callers pass
    * the chunk's `WorldChunkEntry.version` from `WorldStore.getSnapshot()`; bumping it is what
-   * actually triggers `computeChunkInstances` to re-run for *this* chunk
+   * actually triggers `buildRenderPlan` to re-run for *this* chunk
    * only, which is the O(dirty chunks)-not-O(world) rebuild the render
    * layer requires. Defaults to 0 so #6's original (no dirty-tracking)
    * call sites keep working unchanged.
@@ -193,67 +165,9 @@ export interface ChunkMeshProps {
   readonly version?: number;
 }
 
-/** One `InstancedMesh`'s worth of data, already resolved to its final
- *  geometry — the output of splitting #11's cat-grass variant out of the
- *  plain per-block-type groups `computeChunkInstances` returns. */
-interface RenderGroup {
-  /** Unique within one `ChunkMesh` — `group.blockType` for ordinary groups,
-   *  suffixed for the cat-grass split of a Grass group. */
-  readonly key: string;
-  readonly blockType: BlockTypeId;
-  readonly instances: readonly ChunkInstance[];
-  readonly geometry: THREE.BoxGeometry;
-}
-
-/**
- * Expands `computeChunkInstances`'s per-block-type groups into render
- * groups, splitting `BlockType.Grass` into its "plain grass_top" and
- * "cat-face grass_top" (#11) buckets via `splitCatGrassInstances`. Every
- * other block type passes through unchanged. Groups/buckets with zero
- * instances are dropped so an empty `InstancedMesh` is never mounted.
- */
-function buildRenderGroups(
-  groups: readonly ChunkInstanceGroup[],
-): RenderGroup[] {
-  const result: RenderGroup[] = [];
-
-  for (const group of groups) {
-    if (group.blockType !== BlockType.Grass) {
-      if (group.instances.length === 0) continue;
-      result.push({
-        key: String(group.blockType),
-        blockType: group.blockType,
-        instances: group.instances,
-        geometry: getBlockGeometry(group.blockType),
-      });
-      continue;
-    }
-
-    const { normal, catGrass } = splitCatGrassInstances(group.instances);
-    if (normal.length > 0) {
-      result.push({
-        key: String(group.blockType),
-        blockType: group.blockType,
-        instances: normal,
-        geometry: getBlockGeometry(group.blockType),
-      });
-    }
-    if (catGrass.length > 0) {
-      result.push({
-        key: `${group.blockType}-cat`,
-        blockType: group.blockType,
-        instances: catGrass,
-        geometry: getCatGrassGeometry(),
-      });
-    }
-  }
-
-  return result;
-}
-
 /** One chunk's worth of instanced geometry, positioned at its world origin. */
 export function ChunkMesh({ chunk, origin, atlas, version = 0 }: ChunkMeshProps) {
-  const renderGroups = useMemo(() => {
+  const plan = useMemo(() => {
     // `version` is intentionally not read here — it exists purely so this
     // dep array busts the memo when `WorldStore` bumps it for this
     // chunk's key, since `chunk` mutates in place and never changes
@@ -261,20 +175,17 @@ export function ChunkMesh({ chunk, origin, atlas, version = 0 }: ChunkMeshProps)
     // (correctly) satisfied that every listed dep is deliberate, not a
     // request to disable/ignore the rule.
     void version;
-    return buildRenderGroups(computeChunkInstances(chunk, origin));
+    return buildRenderPlan(chunk, origin);
   }, [chunk, origin, version]);
   const material = getSharedMaterial(atlas);
 
   return (
     <group position={[origin.x, origin.y, origin.z]}>
-      {renderGroups.map((renderGroup) => (
-        <BlockTypeInstances
-          key={renderGroup.key}
-          group={{
-            blockType: renderGroup.blockType,
-            instances: renderGroup.instances,
-          }}
-          geometry={renderGroup.geometry}
+      {plan.groups.map((group) => (
+        <PlanGroupMesh
+          key={group.key}
+          group={group}
+          geometry={resolveGeometry(group.geometry)}
           material={material}
         />
       ))}
