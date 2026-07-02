@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `per-issue`
 - Tracking context: GitHub issues #18, #19, #20, #21 (no parent epic). Source plan: `/home/curiouslycory/.claude/plans/please-make-a-bulletproof-plan-cached-iverson.md`
-- Last updated: 2026-07-02 by orchestrator — #18 VERIFIED and **PR #22 open** (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
+- Last updated: 2026-07-02 by orchestrator — **#18 MERGED** (PR #22, merge 7a20ebc); integration re-verified green (build/lint/typecheck/198 tests). wt-18 removed. **Wave 2 (#19) executing** in wt-19 (branched from 7a20ebc); specialist dispatched against `plans/19.md`. [Prior: #18 VERIFIED and PR #22 open] (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
 
 ## Status legend
 
@@ -24,13 +24,13 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #18 | `feat/18-edit-delta-core` | `../threejs-craft-wt-18` | #18 | none | `plans/18.md` | verified (PR #22 open, awaiting human merge) | no |
+| #18 | `feat/18-edit-delta-core` | removed | #18 | none | `plans/18.md` | merged | yes (PR #22, merge 7a20ebc) |
 
 ## Wave 2 (single item): branch from the post-Wave-1 integration tip
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #19 | `feat/19-server-persistence` | `../threejs-craft-wt-19` | #19 | #18 | `plans/19.md` | planned (pre-planned during #18 merge wait; worktree not yet created) | no |
+| #19 | `feat/19-server-persistence` | `../threejs-craft-wt-19` | #19 | #18 | `plans/19.md` | in-progress (worktree created at 7a20ebc; dispatching specialist) | no |
 
 ## Wave 3 (single item): branch from the post-Wave-2 integration tip
 
@@ -61,7 +61,7 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 
 | Date | After merging | Build | Lint | Typecheck | Tests | Conflicts resolved | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| - | - | - | - | - | - | - | - |
+| 2026-07-02 | #18 (merge 7a20ebc, PR #22) | pass | pass (2 pre-existing warnings) | pass | 198/198 | none | Wave 1 complete; integration green. wt-18 removed, branch deleted. wt-19 branched from 7a20ebc. |
 
 ## Decisions / ADRs to confirm
 
