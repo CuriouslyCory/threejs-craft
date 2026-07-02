@@ -15,20 +15,27 @@
  */
 
 import {
-  boxFromFeetPosition,
   sweepAxis,
   translateBox,
   type Box3,
   type Vec3,
-  type VoxelWorld,
 } from "~/game/player/aabb";
+import {
+  boxFromFeetPosition,
+  PLAYER_WIDTH,
+  PLAYER_HEIGHT,
+  PLAYER_DEPTH,
+} from "~/game/player/player-box";
+import type { VoxelReader } from "~/game/voxel";
 
-export type { Vec3, VoxelWorld } from "~/game/player/aabb";
+export type { Vec3 } from "~/game/player/aabb";
+export type { VoxelReader } from "~/game/voxel";
 
 export type PlayerMode = "walk" | "fly";
 
 export interface PlayerState {
-  /** Feet-center position (not eye position — add `EYE_HEIGHT` for that). */
+  /** Feet-center position (not eye position — add `EYE_HEIGHT` from
+   *  `player-box.ts` for that). */
   readonly position: Vec3;
   readonly velocity: Vec3;
   readonly mode: PlayerMode;
@@ -57,13 +64,6 @@ export interface PlayerInput {
    *  but carried alongside yaw for callers that need the full look angle. */
   readonly pitch: number;
 }
-
-/** Player collision box: 0.6 wide x 1.8 tall x 0.6 deep. */
-export const PLAYER_WIDTH = 0.6;
-export const PLAYER_HEIGHT = 1.8;
-export const PLAYER_DEPTH = 0.6;
-/** Eye height above the feet position — used to place the camera. */
-export const EYE_HEIGHT = 1.6;
 
 export const WALK_SPEED = 4.5; // blocks/sec
 export const SPRINT_MULTIPLIER = 1.6;
@@ -136,7 +136,7 @@ function boxForState(state: PlayerState): Box3 {
 export function stepPlayer(
   state: PlayerState,
   input: PlayerInput,
-  world: VoxelWorld,
+  world: VoxelReader,
   dt: number,
 ): PlayerState {
   const mode = resolveMode(state, input);

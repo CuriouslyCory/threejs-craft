@@ -25,13 +25,13 @@ import {
   useRef,
 } from "react";
 
+import { EYE_HEIGHT } from "~/game/player/player-box";
 import {
-  EYE_HEIGHT,
   createPlayerState,
   stepPlayer,
   type PlayerInput,
   type PlayerState,
-  type VoxelWorld,
+  type VoxelReader,
 } from "~/game/player/step-player";
 
 export type LockState = "start" | "playing" | "paused" | "denied";
@@ -43,7 +43,7 @@ export interface PlayerControllerHandle {
 }
 
 export interface PlayerControllerProps {
-  readonly world: VoxelWorld;
+  readonly world: VoxelReader;
   readonly spawn: { readonly x: number; readonly y: number; readonly z: number };
   readonly onLockStateChange: (state: LockState) => void;
 }

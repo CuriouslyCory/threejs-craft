@@ -4,7 +4,7 @@
  * No three.js, no React, no DOM — `Inventory` values are plain readonly data
  * and every function here returns a new `Inventory` rather than mutating its
  * argument, so this is unit-testable in plain Node and safe to hand to
- * `GameStore` (`src/game/store/world-store.ts`) as the domain core it
+ * `WorldStore` (`src/game/store/world-store.ts`) as the domain core it
  * mutates its own copy of.
  */
 
