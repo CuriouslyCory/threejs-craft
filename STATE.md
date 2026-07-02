@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `single`
 - Tracking context: architecture review 2026-07-02, issues #13, #14, #15, #16 (all labeled enhancement, ready-for-agent, game)
-- Last updated: 2026-07-02 by orchestration-builder (initial plan, not yet started)
+- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Wave 1 (#13) planning in progress.
 
 ## Status legend
 
@@ -24,7 +24,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #13 | `feat/13-voxel-read-player-box-chunk-size` | `../wt-13` | #13 | none | `plans/13.md` | not-started | no |
+| #13 | `feat/13-voxel-read-player-box-chunk-size` | `../wt-13` | #13 | none | `plans/13.md` | planned | no |
 
 ## Wave 2 (single item): branch from post-Wave-1 integration tip
 
