@@ -18,12 +18,14 @@
 import { BlockRegistry, BlockType, isSolid } from "~/game/blocks";
 import { chunkKey, worldToChunkCoord, type ChunkKey } from "~/game/coords";
 import { addDrop, consumeSelected, type Inventory } from "~/game/inventory";
-import { boxFromFeetPosition, boxesOverlap, type Box3, type Vec3 } from "~/game/player/aabb";
+import { boxesOverlap, type Box3, type Vec3 } from "~/game/player/aabb";
 import {
+  boxFromFeetPosition,
   PLAYER_DEPTH,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
-} from "~/game/player/step-player";
+} from "~/game/player/player-box";
+import type { VoxelReader } from "~/game/voxel";
 import type { World } from "~/game/world";
 
 export type { Vec3 } from "~/game/player/aabb";
@@ -53,17 +55,12 @@ function distance(a: Vec3, b: Vec3): number {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
-/** The minimal read surface a validator needs from a `World`. */
-export interface WorldReader {
-  getBlock(x: number, y: number, z: number): BlockType;
-}
-
 /**
  * Pure validation for `BreakBlock`: out of `reach` from `from`, or the
  * target is already `Air`. Returns `null` when the break would be allowed.
  */
 export function canBreak(
-  world: WorldReader,
+  world: VoxelReader,
   at: Vec3,
   from: Vec3,
   reach: number,
@@ -106,7 +103,7 @@ export interface PlaceContext {
  * into right now").
  */
 export function canPlace(
-  world: WorldReader,
+  world: VoxelReader,
   at: Vec3,
   from: Vec3,
   reach: number,

@@ -10,12 +10,12 @@ import {
 } from "~/game/command";
 import { chunkKey, worldToChunkCoord } from "~/game/coords";
 import { addDrop, createInventory } from "~/game/inventory";
-import { boxFromFeetPosition } from "~/game/player/aabb";
 import {
+  boxFromFeetPosition,
   PLAYER_DEPTH,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
-} from "~/game/player/step-player";
+} from "~/game/player/player-box";
 import { World } from "~/game/world";
 
 const ORIGIN = { x: 0, y: 0, z: 0 };
