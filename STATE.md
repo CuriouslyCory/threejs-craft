@@ -30,7 +30,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #19 | `feat/19-server-persistence` | `../wt-19` | #19 | #18 | `plans/19.md` | not-started | no |
+| #19 | `feat/19-server-persistence` | `../threejs-craft-wt-19` | #19 | #18 | `plans/19.md` | planned (pre-planned during #18 merge wait; worktree not yet created) | no |
 
 ## Wave 3 (single item): branch from the post-Wave-2 integration tip
 
@@ -90,4 +90,7 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 Use this space for anything that affected the run: a failed gate and how it was resolved, a conflict during integration, a decision rationale, or a reason an item is `blocked`.
 
 - Strictly serial chain (#18 -> #19 -> #20 -> #21); no intra-wave parallelism. Orchestration value is worktree isolation, resumable state, per-item planning, and green-baseline re-verification.
+- **CodeRabbit CLI is signed out** (non-interactive session can't run `coderabbit auth login`). #18 was reviewed by an internal `Code Reviewer` subagent instead (2 findings applied). PRs will also get CodeRabbit's GitHub-app review if configured. To restore CLI review, run `coderabbit auth login` in an interactive session.
+- **2026-07-02 — Wave 1 (#18) done to PR #22, awaiting human merge.** Earlier `plans/18.md` draft (and partial worktree code) had a `Buffer`/base64-in-client codec + private-`World.chunks` access + `GeneratedWorld`-as-`World` bugs; plan rewritten and code corrected before commit. Review findings applied: strict delta-length validation (reject a `count` that understates trailing bytes) and a documented single-record-per-`chunkKey` precondition (enforced downstream by #19's composite PK).
+- **RESUME POINT:** when PR #22 is merged by a human → `git switch feat/world-persistence && git pull` → re-verify integration (build/lint/typecheck/test) and log it → `git worktree add ../threejs-craft-wt-19 -b feat/19-server-persistence feat/world-persistence` → execute `plans/19.md`. Decision D1 (server applies voxel mutation only, no reach/inventory re-validation) is flagged in the plan for reviewer sign-off alongside ADR-0002/0003 and the OPEN `World{ownerId}` question.
 - **2026-07-02 — Wave 1 plan written.** Issue #18 plan generated: pure edit-delta core (chunk accessors, codec, world bridge, worldgen determinism test). Dispatching Sonnet agent to worktree `../wt-18` for implementation.
