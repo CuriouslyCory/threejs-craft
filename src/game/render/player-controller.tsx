@@ -25,8 +25,8 @@ import {
   useRef,
 } from "react";
 
+import { EYE_HEIGHT } from "~/game/player/player-box";
 import {
-  EYE_HEIGHT,
   createPlayerState,
   stepPlayer,
   type PlayerInput,

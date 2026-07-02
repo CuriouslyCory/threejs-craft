@@ -5,6 +5,11 @@ export const PLAYER_WIDTH = 0.6;
 export const PLAYER_HEIGHT = 1.8;
 export const PLAYER_DEPTH = 0.6;
 
+/** Eye height above the feet position — used to place the camera. This is
+ *  the single home of the eye/feet convention: `player-controller.tsx` adds
+ *  it (feet -> eye) and `interaction.ts` subtracts it (eye -> feet). */
+export const EYE_HEIGHT = 1.6;
+
 /** Build the player's world-space AABB from its feet-center position. */
 export function boxFromFeetPosition(
   position: Vec3,
