@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `single`
 - Tracking context: architecture review 2026-07-02, issues #13, #14, #15, #16 (all labeled enhancement, ready-for-agent, game)
-- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). ALL WAVES MERGED (#13 2d9deeb, #14 eb5bed8, #16 7553619, #15 9037813). Integration `feat/architecture-deepening` @ 9037813 fully green (build+lint+typecheck+178 tests). Opening final PR into main.
+- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). ALL WAVES MERGED (#13 2d9deeb, #14 eb5bed8, #16 7553619, #15 9037813). Integration `feat/architecture-deepening` fully green (build+lint+typecheck+178 tests). **RUN COMPLETE** — final PR #17 opened into main, left OPEN for human review (orchestrator does not self-merge).
 
 ## Status legend
 
@@ -79,11 +79,11 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 
 - [x] All items show `merged` (#13, #14, #16, #15)
 - [x] Final full `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm test` all green on `feat/architecture-deepening` (9037813: build ✓, lint ✓ 2 pre-existing warnings, typecheck ✓, 178/178 tests)
-- [ ] PR opened into `main` per the configured PR model
-- [ ] PR body includes `Closes #13`, `Closes #14`, `Closes #16`, `Closes #15`
-- [ ] PR body summarizes every decision/ADR for sign-off
+- [x] PR opened into `main` per the configured PR model — **PR #17** (https://github.com/CuriouslyCory/threejs-craft/pull/17)
+- [x] PR body includes `Closes #13`, `Closes #14`, `Closes #16`, `Closes #15`
+- [x] PR body summarizes every decision/ADR for sign-off (ADR-0001 compat; #16-before-#15 resequencing; EYE_HEIGHT home; WeakMap picking transport)
 - [x] All worktrees removed; merged item branches deleted (wt-13/14/15/16 removed; feat/13/14/15/16 branches deleted)
-- [ ] Final PR left for human review (orchestrator does not self-merge)
+- [x] Final PR left for human review (orchestrator does not self-merge) — PR #17 left OPEN for human review
 
 ## Notes and blockers
 
