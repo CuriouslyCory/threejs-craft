@@ -3,7 +3,7 @@
 /**
  * 6-slot hotbar HUD — a plain DOM overlay (sibling of `<Canvas>`) driven by
  * `useSyncExternalStore(store.subscribe, store.getInventorySnapshot)`. It
- * only re-renders when `GameStore.apply` actually changes the inventory
+ * only re-renders when `WorldStore.apply` actually changes the inventory
  * (see `world-store.ts`'s `notify()`), never per frame — the per-frame
  * raycast/outline path in `block-target.tsx` never touches this component.
  */
@@ -11,10 +11,10 @@
 import { useSyncExternalStore } from "react";
 
 import { BlockRegistry } from "~/game/blocks";
-import type { GameStore } from "~/game/store/world-store";
+import type { WorldStore } from "~/game/store/world-store";
 
 export interface HotbarHudProps {
-  readonly store: GameStore;
+  readonly store: WorldStore;
 }
 
 export function HotbarHud({ store }: HotbarHudProps) {
