@@ -1,8 +1,17 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { BlockType } from "~/game/blocks";
 import type { World } from "~/game/world";
 import { generateWorld } from "~/game/worldgen";
+
+/** sha256 hex digest of a single chunk's raw voxel bytes. */
+function hashChunk(world: World, cx: number, cy: number, cz: number): string {
+  const chunk = world.getChunk(cx, cy, cz);
+  const bytes = chunk ? chunk.snapshot() : new Uint8Array(0);
+  return createHash("sha256").update(bytes).digest("hex");
+}
 
 /** Serialize every voxel in the generated map footprint for deep comparison. */
 function snapshotWorld(world: World, size: number): number[] {
@@ -96,5 +105,34 @@ describe("generateWorld", () => {
     generateWorld({ seed: "purity-check" });
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  // GOLDEN DETERMINISM TEST — do not "fix" by re-pinning without investigating.
+  //
+  // The world-persistence design (#18) computes every stored edit-delta as a
+  // diff against a freshly-regenerated chunk for a fixed seed (see
+  // `src/game/persistence/world-delta.ts`'s `baseChunkBytes`). That only
+  // works if `generateWorld` is byte-identical for a given seed forever,
+  // across dependency bumps, refactors, etc. If this test ever fails, it
+  // means `generateWorld`'s output for a fixed seed has drifted — every
+  // previously-computed delta in storage would now decode against the WRONG
+  // base, silently corrupting every player's saved world edits. Treat a
+  // failure here as a RED FLAG to investigate root cause (what changed in
+  // `worldgen.ts`/`rng.ts` and why), not a stale snapshot to silence by
+  // updating the pinned hash.
+  it("golden hash: pinned chunk bytes for a fixed seed must never silently drift", () => {
+    const { world } = generateWorld({ seed: "persistence-golden-seed-v1" });
+
+    // Spawn chunk (contains terrain + likely tree material) and a far-corner
+    // edge chunk of the default 48x48 footprint (chunk coords 0..2).
+    const spawnChunkHash = hashChunk(world, 1, 0, 1);
+    const edgeChunkHash = hashChunk(world, 0, 0, 0);
+
+    expect(spawnChunkHash).toBe(
+      "367bca7668717a1cea983fbe8c8f636d61ca53cdf1606360f5bf5c759de69955",
+    );
+    expect(edgeChunkHash).toBe(
+      "674d311e14fd20393dab7d282ecfff9c78c7c6a70362d9470221c97fa7adc280",
+    );
   });
 });
