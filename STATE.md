@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `single`
 - Tracking context: architecture review 2026-07-02, issues #13, #14, #15, #16 (all labeled enhancement, ready-for-agent, game)
-- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Waves 1-2 MERGED (#13 2d9deeb, #14 eb5bed8), integration green. Wave 3 (#16) starting.
+- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Waves 1-3 MERGED (#13 2d9deeb, #14 eb5bed8, #16 7553619), integration green. Wave 4 (#15) starting — builds on #16's typed instance-picking contract.
 
 ## Status legend
 
@@ -36,7 +36,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #16 | `feat/16-render-plan-module` | `../wt-16` | #16 | #14 | `plans/16.md` | not-started | no |
+| #16 | `feat/16-render-plan-module` | removed | #16 | #14 | `plans/16.md` | merged | yes (7553619) |
 
 ## Wave 4 (single item): branch from post-Wave-3 integration tip
 
@@ -52,7 +52,7 @@ Record pass/fail and date when each item clears its gate in-worktree, before mer
 | --- | --- | --- | --- | --- | --- | --- |
 | #13 | pass | pass | pass | pass (158/158) | met | met: 158/158 tests unchanged, greps confirm single homes (WorldReader/VoxelWorld gone, 1 CHUNK_SIZE, no step-player import in command.ts) |
 | #14 | pass | pass | pass | pass (156/156) | met | met: new-chunk render path covered by regression test (getSnapshot includes edit-created chunk); O(dirty) entry-identity test; useSyncExternalStore caching verified in review |
-| #16 | pending | pending | pending | pending | pending | Visual output unchanged: same blocks, same deterministic cat-grass distribution, picking still works |
+| #16 | pass | pass | pass | pass (162/162) | met | met: visual output byte-identical (matrix math/group order/geometry keys preserved; cat-grass.ts + chunk-instances.ts untouched); typed WeakMap picking replaces userData; game-scene.tsx untouched; +6 render-plan tests |
 | #15 | pending | pending | pending | pending | pending | No gameplay change: break/place/hotbar behave identically in the running game |
 
 ## Integration re-verification log
@@ -63,6 +63,7 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-07-02 | #13 (merge 2d9deeb) | pass | pass (2 pre-existing warnings) | pass | 158/158 | none | Wave 1 complete; integration green |
 | 2026-07-02 | #14 (merge eb5bed8) | pass | pass (2 pre-existing warnings) | pass | 156/156 | none | Wave 2 complete; integration green. Test count 158→156: deleted local-world-store.test.ts + remote-world-source.test.ts, added new-chunk + O(dirty) regression tests |
+| 2026-07-02 | #16 (merge 7553619) | pass | pass (2 pre-existing warnings) | pass | 162/162 | none | Wave 3 complete; integration green. +6 render-plan.test.ts tests. Typed instance-picking seam now available for #15 |
 
 ## Decisions / ADRs to confirm
 
