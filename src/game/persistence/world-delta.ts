@@ -10,7 +10,12 @@
  *
  * Every delta is decoded against the freshly-regenerated seeded base (never
  * against a chunk's current in-memory bytes), so applying a set of deltas is
- * both order-independent and idempotent.
+ * order-independent and idempotent — provided there is at most one record per
+ * `chunkKey`. That uniqueness is a precondition callers must uphold; the
+ * server store enforces it via a composite primary key on
+ * `(savedWorldId, chunkKey)`, so duplicate-keyed records never reach here. If
+ * two records shared a key, `chunk.load` would make the last one win and the
+ * result would depend on array order.
  */
 
 import { CHUNK_VOLUME } from "~/game/chunk";
@@ -55,7 +60,8 @@ export function computeChunkDelta(
  * Apply stored deltas onto `world` in place. Each delta is decoded against
  * the seeded base for its chunk key (not the chunk's current bytes), so
  * this is safe to call with deltas in any order and safe to call more than
- * once (idempotent).
+ * once (idempotent) — assuming at most one record per `chunkKey` (see the
+ * module doc). Duplicate-keyed records would make the last one win.
  */
 export function applyStoredDeltas(
   world: World,

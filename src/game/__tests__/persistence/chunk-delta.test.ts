@@ -118,6 +118,24 @@ describe("chunk-delta codec", () => {
     expect(() => decodeChunkDelta(base, badDelta)).toThrow(RangeError);
   });
 
+  it("decode rejects a count that understates the trailing edit bytes", () => {
+    // A corrupted `count` (here 1) smaller than the edits the blob actually
+    // carries (here 2) must throw rather than silently drop the second edit.
+    const base = makeBase();
+    const buffer = new ArrayBuffer(3 + 2 * 3); // header + two edit records
+    const view = new DataView(buffer);
+    view.setUint8(0, CHUNK_DELTA_VERSION);
+    view.setUint16(1, 1, false); // claims 1 edit, but 2 records follow
+    view.setUint16(3, 0, false);
+    view.setUint8(5, 1);
+    view.setUint16(6, 1, false);
+    view.setUint8(8, 1);
+    const badDelta = new Uint8Array(buffer);
+
+    expect(() => decodeChunkDelta(base, badDelta)).toThrow(RangeError);
+    expect(() => isEmptyChunkDelta(badDelta)).toThrow(RangeError);
+  });
+
   it("encode rejects inputs that aren't exactly CHUNK_VOLUME bytes", () => {
     const base = makeBase();
     const tooShort = new Uint8Array(10);

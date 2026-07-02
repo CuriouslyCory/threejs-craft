@@ -38,6 +38,37 @@ function assertChunkVolume(bytes: Uint8Array, label: string): void {
 }
 
 /**
+ * Validate a delta's header (version + exact structural length) and return
+ * its declared edit count. Rejects short, truncated, over-long, and
+ * wrong-version deltas with `RangeError` so malformed persisted bytes can
+ * never silently reconstruct the wrong voxels — a corrupted `count` field
+ * that decodes to fewer edits than the blob actually carries must throw, not
+ * quietly drop the trailing edits.
+ */
+function readDeltaCount(delta: Uint8Array): number {
+  if (delta.length < HEADER_SIZE) {
+    throw new RangeError(
+      `Chunk delta too short: expected at least ${HEADER_SIZE} bytes, got ${delta.length}`,
+    );
+  }
+  const view = new DataView(delta.buffer, delta.byteOffset, delta.byteLength);
+  const version = view.getUint8(VERSION_OFFSET);
+  if (version !== CHUNK_DELTA_VERSION) {
+    throw new RangeError(
+      `Unsupported chunk delta version: ${version} (expected ${CHUNK_DELTA_VERSION})`,
+    );
+  }
+  const count = view.getUint16(COUNT_OFFSET, false);
+  const expectedLength = HEADER_SIZE + count * EDIT_SIZE;
+  if (delta.length !== expectedLength) {
+    throw new RangeError(
+      `Malformed chunk delta: expected exactly ${expectedLength} bytes for ${count} edits, got ${delta.length}`,
+    );
+  }
+  return count;
+}
+
+/**
  * Encode a sparse delta between `base` and `current` chunk bytes.
  * Emits only the indices where the two differ, storing `current`'s value.
  * Throws `RangeError` if either input is not exactly `CHUNK_VOLUME` bytes.
@@ -82,27 +113,8 @@ export function decodeChunkDelta(
   delta: Uint8Array,
 ): Uint8Array {
   assertChunkVolume(base, "base");
-  if (delta.length < HEADER_SIZE) {
-    throw new RangeError(
-      `Chunk delta too short: expected at least ${HEADER_SIZE} bytes, got ${delta.length}`,
-    );
-  }
-
+  const count = readDeltaCount(delta);
   const view = new DataView(delta.buffer, delta.byteOffset, delta.byteLength);
-  const version = view.getUint8(VERSION_OFFSET);
-  if (version !== CHUNK_DELTA_VERSION) {
-    throw new RangeError(
-      `Unsupported chunk delta version: ${version} (expected ${CHUNK_DELTA_VERSION})`,
-    );
-  }
-
-  const count = view.getUint16(COUNT_OFFSET, false);
-  const expectedLength = HEADER_SIZE + count * EDIT_SIZE;
-  if (delta.length < expectedLength) {
-    throw new RangeError(
-      `Chunk delta truncated: expected ${expectedLength} bytes for ${count} edits, got ${delta.length}`,
-    );
-  }
 
   const current = base.slice();
   for (let i = 0; i < count; i++) {
@@ -122,14 +134,9 @@ export function decodeChunkDelta(
 
 /**
  * True when `delta` encodes zero edits (reads the uint16 count field —
- * never inferred from `.length`).
+ * never inferred from `.length`). Validates the delta's header and exact
+ * structural length first, throwing `RangeError` on a malformed blob.
  */
 export function isEmptyChunkDelta(delta: Uint8Array): boolean {
-  if (delta.length < HEADER_SIZE) {
-    throw new RangeError(
-      `Chunk delta too short: expected at least ${HEADER_SIZE} bytes, got ${delta.length}`,
-    );
-  }
-  const view = new DataView(delta.buffer, delta.byteOffset, delta.byteLength);
-  return view.getUint16(COUNT_OFFSET, false) === 0;
+  return readDeltaCount(delta) === 0;
 }
