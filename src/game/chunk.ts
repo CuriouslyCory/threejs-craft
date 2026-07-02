@@ -11,7 +11,8 @@ import { CHUNK_SIZE } from "~/game/coords";
 
 export { CHUNK_SIZE };
 
-const CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+/** Total voxel count in a chunk (16^3). Exported for the delta codec/tests. */
+export const CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 /** Flat index for a local (0..15) voxel coordinate within a chunk. */
 function localIndex(x: number, y: number, z: number): number {
@@ -50,5 +51,26 @@ export class Chunk {
       return;
     }
     this.blocks[localIndex(x, y, z)] = id;
+  }
+
+  /**
+   * Snapshot the current chunk state as a defensive copy.
+   * Returns a Uint8Array of exactly CHUNK_VOLUME bytes.
+   */
+  snapshot(): Uint8Array {
+    return this.blocks.slice();
+  }
+
+  /**
+   * Load chunk state from a byte array.
+   * Validates length === CHUNK_VOLUME; throws a `RangeError` on mismatch.
+   */
+  load(bytes: Uint8Array): void {
+    if (bytes.length !== CHUNK_VOLUME) {
+      throw new RangeError(
+        `Invalid chunk load: expected ${CHUNK_VOLUME} bytes, got ${bytes.length}`,
+      );
+    }
+    this.blocks.set(bytes);
   }
 }
