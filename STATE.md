@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `single`
 - Tracking context: architecture review 2026-07-02, issues #13, #14, #15, #16 (all labeled enhancement, ready-for-agent, game)
-- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Wave 1 (#13) MERGED (2d9deeb), integration green. Wave 2 (#14) starting.
+- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Waves 1-2 MERGED (#13 2d9deeb, #14 eb5bed8), integration green. Wave 3 (#16) starting.
 
 ## Status legend
 
@@ -30,7 +30,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #14 | `feat/14-worldstore-seam` | `../wt-14` | #14 | #13 | `plans/14.md` | not-started | no |
+| #14 | `feat/14-worldstore-seam` | removed | #14 | #13 | `plans/14.md` | merged | yes (eb5bed8) |
 
 ## Wave 3 (single item): branch from post-Wave-2 integration tip
 
@@ -51,7 +51,7 @@ Record pass/fail and date when each item clears its gate in-worktree, before mer
 | Item | Build | Lint | Typecheck | Tests | Acceptance criteria | Item-specific check |
 | --- | --- | --- | --- | --- | --- | --- |
 | #13 | pass | pass | pass | pass (158/158) | met | met: 158/158 tests unchanged, greps confirm single homes (WorldReader/VoxelWorld gone, 1 CHUNK_SIZE, no step-player import in command.ts) |
-| #14 | pending | pending | pending | pending | pending | Demoable: placing a block into a previously-unloaded chunk renders it immediately; new regression test for this path |
+| #14 | pass | pass | pass | pass (156/156) | met | met: new-chunk render path covered by regression test (getSnapshot includes edit-created chunk); O(dirty) entry-identity test; useSyncExternalStore caching verified in review |
 | #16 | pending | pending | pending | pending | pending | Visual output unchanged: same blocks, same deterministic cat-grass distribution, picking still works |
 | #15 | pending | pending | pending | pending | pending | No gameplay change: break/place/hotbar behave identically in the running game |
 
@@ -62,12 +62,13 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 | Date | After merging | Build | Lint | Typecheck | Tests | Conflicts resolved | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-07-02 | #13 (merge 2d9deeb) | pass | pass (2 pre-existing warnings) | pass | 158/158 | none | Wave 1 complete; integration green |
+| 2026-07-02 | #14 (merge eb5bed8) | pass | pass (2 pre-existing warnings) | pass | 156/156 | none | Wave 2 complete; integration green. Test count 158→156: deleted local-world-store.test.ts + remote-world-source.test.ts, added new-chunk + O(dirty) regression tests |
 
 ## Decisions / ADRs to confirm
 
 | Decision | Item | Recorded | Confirmed at PR review |
 | --- | --- | --- | --- |
-| WorldStore seam reshape stays compatible with ADR-0001 (edit-delta persistence): frozen `Command`/`CommandResult` Zod contract must remain untouched | #14 | no | no |
+| WorldStore seam reshape stays compatible with ADR-0001 (edit-delta persistence): frozen `Command`/`CommandResult` Zod contract must remain untouched | #14 | yes — command.ts, command-schema.ts, server/api/routers/world.ts byte-for-byte unchanged (empty `git diff --stat`); parity asserts still compile; noted in merge commit eb5bed8 | no |
 | #15 resequenced to run after #16 (not parallel) due to shared-surface conflict on `block-target.tsx` and the instance-picking contract | #15 / #16 | yes (this file) | no |
 
 ## Finalization checklist
