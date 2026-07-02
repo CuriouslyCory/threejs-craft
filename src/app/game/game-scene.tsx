@@ -16,7 +16,7 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { EYE_HEIGHT } from "~/game/player/step-player";
+import { EYE_HEIGHT } from "~/game/player/player-box";
 import { createBlockAtlas } from "~/game/render/atlas";
 import { BlockTargeting } from "~/game/render/block-target";
 import { ChunkMesh } from "~/game/render/chunk-mesh";

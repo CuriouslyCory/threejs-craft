@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { BlockType } from "~/game/blocks";
 import {
-  EYE_HEIGHT,
   FLY_SPEED,
   GRAVITY,
   JUMP_SPEED,
@@ -217,11 +216,5 @@ describe("stepPlayer — double-tap mode toggle", () => {
 
     const toWalk = stepPlayer(toFly, baseInput({ toggleMode: true }), world, FRAME_DT);
     expect(toWalk.mode).toBe("walk");
-  });
-});
-
-describe("EYE_HEIGHT", () => {
-  it("is the documented 1.6 blocks above the feet position", () => {
-    expect(EYE_HEIGHT).toBe(1.6);
   });
 });

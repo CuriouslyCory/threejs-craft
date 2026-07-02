@@ -34,7 +34,8 @@ export type { VoxelReader } from "~/game/voxel";
 export type PlayerMode = "walk" | "fly";
 
 export interface PlayerState {
-  /** Feet-center position (not eye position — add `EYE_HEIGHT` for that). */
+  /** Feet-center position (not eye position — add `EYE_HEIGHT` from
+   *  `player-box.ts` for that). */
   readonly position: Vec3;
   readonly velocity: Vec3;
   readonly mode: PlayerMode;
@@ -63,9 +64,6 @@ export interface PlayerInput {
    *  but carried alongside yaw for callers that need the full look angle. */
   readonly pitch: number;
 }
-
-/** Eye height above the feet position — used to place the camera. */
-export const EYE_HEIGHT = 1.6;
 
 export const WALK_SPEED = 4.5; // blocks/sec
 export const SPRINT_MULTIPLIER = 1.6;

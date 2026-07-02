@@ -43,16 +43,25 @@
  * by `setMatrixAt` there is built from a scratch `Object3D` with no
  * rotation/scale applied) — a pure translation never changes a direction
  * vector, so `intersection.face.normal` already equals the world-space face
- * normal here and needs no further transform. `Math.round` below only
- * guards against float noise on an otherwise-exact ±1/0/0 component.
+ * normal here and needs no further transform. The `Math.round` snap that
+ * relies on this assumption, and the rest of the raycast-hit -> `Command`
+ * derivation (reach gate, eye/feet conversion, empty-slot gate), now live
+ * in the pure `interaction.ts` module (`resolveTargetCells`/
+ * `deriveInteraction`) — this component's job is only to raycast, map the
+ * hit into that module's plain `RaycastHit` shape, wire pointer/keyboard
+ * events, and render the outline.
  */
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { DEFAULT_REACH, type Vec3 } from "~/game/command";
-import { EYE_HEIGHT } from "~/game/player/step-player";
+import { DEFAULT_REACH } from "~/game/command";
+import {
+  deriveInteraction,
+  resolveTargetCells,
+  type RaycastHit,
+} from "~/game/interaction";
 import {
   isPickableInstancedMesh,
   readInstanceCoord,
@@ -86,15 +95,13 @@ export function BlockTargeting({ store }: BlockTargetingProps) {
   const { camera, scene, raycaster, gl } = useThree();
 
   const outlineRef = useRef<THREE.LineSegments>(null);
-  /** The current in-reach target (the targeted block itself — what
-   *  `BreakBlock` acts on), written every frame by `useFrame` and read by
-   *  the click handler — a ref, not React state, per #7's
-   *  zero-per-frame-setState rule. */
-  const targetRef = useRef<Vec3 | null>(null);
-  /** The cell adjacent to the targeted face (`target + faceNormal`) — what
-   *  `PlaceBlock` acts on. `null` whenever `targetRef` is (no target) or the
-   *  hit carried no usable face normal. */
-  const placeAtRef = useRef<Vec3 | null>(null);
+  /** The last frame's raycast hit, mapped to the pure module's plain shape —
+   *  written every frame by `useFrame` and read by the click handler (a
+   *  ref, not React state, per #7's zero-per-frame-setState rule). Replaces
+   *  the old `targetRef`/`placeAtRef` pair: `deriveInteraction` re-resolves
+   *  target/place cells from this on click, deterministically matching
+   *  today's last-frame semantics. */
+  const hitRef = useRef<RaycastHit | null>(null);
   /** Scratch array reused every frame instead of allocating a new one. */
   const candidatesRef = useRef<THREE.Object3D[]>([]);
 
@@ -116,31 +123,26 @@ export function BlockTargeting({ store }: BlockTargetingProps) {
     const hits = raycaster.intersectObjects(candidates, false);
     const hit = hits[0];
 
-    let target: Vec3 | null = null;
-    let placeAt: Vec3 | null = null;
-    if (hit && hit.distance <= DEFAULT_REACH && hit.instanceId !== undefined) {
+    let mapped: RaycastHit | null = null;
+    if (hit?.instanceId !== undefined) {
       const coord = readInstanceCoord(
         hit.object as THREE.InstancedMesh,
         hit.instanceId,
       );
       if (coord) {
-        target = coord.world;
         const normal = hit.face?.normal;
-        if (normal) {
-          // See the file-level comment: object-space normal already equals
-          // world-space here (translation-only transform chain), so no
-          // `transformDirection` is needed — just snap to the nearest axis.
-          placeAt = {
-            x: target.x + Math.round(normal.x),
-            y: target.y + Math.round(normal.y),
-            z: target.z + Math.round(normal.z),
-          };
-        }
+        mapped = {
+          cell: coord.world,
+          faceNormal: normal
+            ? { x: normal.x, y: normal.y, z: normal.z }
+            : undefined,
+          distance: hit.distance,
+        };
       }
     }
-    targetRef.current = target;
-    placeAtRef.current = placeAt;
+    hitRef.current = mapped;
 
+    const { target } = resolveTargetCells(mapped, DEFAULT_REACH);
     const outline = outlineRef.current;
     if (!outline) return;
     if (target) {
@@ -157,49 +159,32 @@ export function BlockTargeting({ store }: BlockTargetingProps) {
     const handlePointerDown = (event: PointerEvent) => {
       if (document.pointerLockElement !== canvas) return; // only while locked
 
-      const eyePosition: Vec3 = {
-        x: camera.position.x,
-        y: camera.position.y,
-        z: camera.position.z,
+      const action =
+        event.button === 0 ? "break" : event.button === 2 ? "place" : null;
+      if (!action) return;
+
+      const pose = {
+        eye: {
+          x: camera.position.x,
+          y: camera.position.y,
+          z: camera.position.z,
+        },
       };
-
-      if (event.button === 0) {
-        // Left click: break the targeted block.
-        const at = targetRef.current;
-        if (!at) return;
-        store.apply({ type: "BreakBlock", at }, eyePosition);
-        return;
-      }
-
-      if (event.button === 2) {
-        // Right click: place the selected hotbar block onto the targeted
-        // face's adjacent cell. No-op (not even an `apply()` call) when
-        // there's no target/face or the selected slot is already empty —
-        // `canPlace`'s `NotInInventory` still covers this path for any
-        // caller that *does* invoke `apply` with a stale selection.
-        const at = placeAtRef.current;
-        if (!at) return;
-        const selected = store.getInventorySnapshot();
-        const slot = selected.slots[selected.selected];
-        if (!slot?.block) return;
-
-        // Reach/`from` stays the eye position (matches BreakBlock's reach
-        // gating); `playerPosition` is the feet position `canPlace` needs
-        // for its player-clip AABB check, recovered from the eye position
-        // by subtracting `EYE_HEIGHT` (the inverse of how
-        // `player-controller.tsx` places the camera).
-        const playerPosition: Vec3 = {
-          x: eyePosition.x,
-          y: eyePosition.y - EYE_HEIGHT,
-          z: eyePosition.z,
-        };
-        store.apply(
-          { type: "PlaceBlock", at, block: slot.block },
-          eyePosition,
-          DEFAULT_REACH,
-          playerPosition,
-        );
-      }
+      const inventory = store.getInventorySnapshot();
+      const result = deriveInteraction(
+        pose,
+        hitRef.current,
+        inventory,
+        action,
+        DEFAULT_REACH,
+      );
+      if (!result) return;
+      store.apply(
+        result.command,
+        result.from,
+        result.reach,
+        result.playerPosition,
+      );
     };
 
     // Right-click is a real game action (placement) here, not a browser
