@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `single`
 - Tracking context: architecture review 2026-07-02, issues #13, #14, #15, #16 (all labeled enhancement, ready-for-agent, game)
-- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Wave 1 (#13) planning in progress.
+- Last updated: 2026-07-02 by orchestrator — run started. Integration branch `feat/architecture-deepening` created at `1cfd257` (scaffolding on 7e63afe). Baseline verified green on main (build+lint+typecheck+158 tests). Wave 1 (#13) MERGED (2d9deeb), integration green. Wave 2 (#14) starting.
 
 ## Status legend
 
@@ -24,7 +24,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #13 | `feat/13-voxel-read-player-box-chunk-size` | `../wt-13` | #13 | none | `plans/13.md` | planned | no |
+| #13 | `feat/13-voxel-read-player-box-chunk-size` | removed | #13 | none | `plans/13.md` | merged | yes (2d9deeb) |
 
 ## Wave 2 (single item): branch from post-Wave-1 integration tip
 
@@ -50,7 +50,7 @@ Record pass/fail and date when each item clears its gate in-worktree, before mer
 
 | Item | Build | Lint | Typecheck | Tests | Acceptance criteria | Item-specific check |
 | --- | --- | --- | --- | --- | --- | --- |
-| #13 | pending | pending | pending | pending | pending | No behavior change: existing test suite passes unmodified (import-path updates only) |
+| #13 | pass | pass | pass | pass (158/158) | met | met: 158/158 tests unchanged, greps confirm single homes (WorldReader/VoxelWorld gone, 1 CHUNK_SIZE, no step-player import in command.ts) |
 | #14 | pending | pending | pending | pending | pending | Demoable: placing a block into a previously-unloaded chunk renders it immediately; new regression test for this path |
 | #16 | pending | pending | pending | pending | pending | Visual output unchanged: same blocks, same deterministic cat-grass distribution, picking still works |
 | #15 | pending | pending | pending | pending | pending | No gameplay change: break/place/hotbar behave identically in the running game |
@@ -61,7 +61,7 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 
 | Date | After merging | Build | Lint | Typecheck | Tests | Conflicts resolved | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | |
+| 2026-07-02 | #13 (merge 2d9deeb) | pass | pass (2 pre-existing warnings) | pass | 158/158 | none | Wave 1 complete; integration green |
 
 ## Decisions / ADRs to confirm
 
