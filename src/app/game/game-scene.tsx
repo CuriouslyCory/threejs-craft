@@ -16,7 +16,6 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { chunkKey, worldToChunkCoord } from "~/game/coords";
 import { EYE_HEIGHT } from "~/game/player/step-player";
 import { createBlockAtlas } from "~/game/render/atlas";
 import { BlockTargeting } from "~/game/render/block-target";
@@ -30,41 +29,11 @@ import {
   type LockState,
   type PlayerControllerHandle,
 } from "~/game/render/player-controller";
-import {
-  createLocalWorldStore,
-  LocalWorldSource,
-  type WorldSource,
-} from "~/game/store/local-world-store";
-import { RemoteWorldSource } from "~/game/store/remote-world-source";
-import { createGameStore } from "~/game/store/world-store";
-import type { World } from "~/game/world";
+import { createWorldStore } from "~/game/store/world-store";
 import { GROUND_SURFACE_Y, generateWorld } from "~/game/worldgen";
 
 /** Fixed seed — the acceptance bar is "identical every load," not variety. */
 const WORLD_CONFIG = { seed: "threejs-craft-static-world-v1" };
-
-/** The shape both `WorldSource` constructors below must satisfy. */
-type WorldSourceCtor = new (world: World) => WorldSource;
-
-/**
- * Compile-time proof (#10) that `RemoteWorldSource` — the identity adapter
- * over `LocalWorldSource` (`~/game/store/remote-world-source.ts`) — is a
- * drop-in `WorldSourceCtor`, exactly like `LocalWorldSource` itself. Neither
- * constant is *called* here; this only exercises the type, so it can't
- * change what actually runs.
- */
-const _remoteWorldSourceCtor: WorldSourceCtor = RemoteWorldSource;
-void _remoteWorldSourceCtor;
-
-/**
- * The composition-root swap point (#10): the single place `LocalWorldSource`
- * and `RemoteWorldSource` trade places. Both satisfy `WorldSource` (proved
- * above), so swapping this line to `RemoteWorldSource` compiles and runs the
- * game unchanged — `RemoteWorldSource` is an identity adapter over
- * `LocalWorldSource`, not a real network source yet. Default stays
- * `LocalWorldSource`: the running game must not change.
- */
-const WORLD_SOURCE_CTOR: WorldSourceCtor = LocalWorldSource; // <- swap to RemoteWorldSource to prove the seam
 
 /**
  * Logs `gl.info.render.calls` once shortly after mount so the "~1 draw call
@@ -88,36 +57,25 @@ function DrawCallProbe() {
 }
 
 export default function GameScene() {
-  // Built once per mount: the world itself (pure/deterministic) and the
+  // Built once per mount: the pure/deterministic generated world, the one
+  // `WorldStore` (mutation + the versioned chunk snapshot), and the
   // procedural atlas texture (canvas-backed — must stay client-only).
-  const store = useMemo(
-    () => createLocalWorldStore(generateWorld(WORLD_CONFIG), WORLD_SOURCE_CTOR),
-    [],
-  );
+  const generated = useMemo(() => generateWorld(WORLD_CONFIG), []);
+  const store = useMemo(() => createWorldStore(generated.world), [generated]);
   const atlas = useMemo(() => createBlockAtlas(), []);
   useEffect(() => () => atlas.texture.dispose(), [atlas]);
 
-  // #8's mutation/notification store, layered on top of #6's read-only
-  // `store.generated.world`. Memoized so it (and the world it wraps) live
-  // for the whole component lifetime, not re-created per render.
-  const gameStore = useMemo(
-    () => createGameStore(store.generated.world),
-    [store],
-  );
-  // Subscribing here is what makes `apply()` (called from `BlockTargeting`
-  // on a break) actually cause a React re-render at all — without it,
-  // `chunkVersion` below would never observe the bump `apply` wrote into
-  // `gameStore`. This is a discrete, user-driven re-render (a click), not a
-  // per-frame one, so it doesn't regress #7's zero-setState-per-frame rule.
-  useSyncExternalStore(gameStore.subscribe, gameStore.getVersionSnapshot);
+  // The versioned snapshot IS the mounted chunk set: subscribing here is
+  // what makes `apply()` (called from `BlockTargeting` on a break/place)
+  // actually cause a React re-render, and — because chunk existence is part
+  // of this same snapshot — a chunk first created by an edit enters
+  // `entries` on the very next render, so its `ChunkMesh` mounts
+  // immediately (this is a discrete, user-driven re-render, not a
+  // per-frame one, so it doesn't regress #7's zero-setState-per-frame
+  // rule).
+  const entries = useSyncExternalStore(store.subscribe, store.getSnapshot);
 
-  const { size, spawn } = store.generated;
-  // Memoized (not called fresh in the render body) so `chunk`/`origin`
-  // object identity stays stable across re-renders — required for
-  // `ChunkMesh`'s `useMemo` (keyed on `[chunk, origin, version]`) to only
-  // recompute the *actually dirty* chunk when `gameStore`'s version bumps,
-  // rather than every chunk on every re-render.
-  const chunkEntries = useMemo(() => store.source.chunkEntries(), [store]);
+  const { size, spawn } = generated;
 
   // Center the player in the spawn column's footprint (worldgen's `spawn`
   // is an integer voxel coordinate) and stand it on the grass top face.
@@ -169,32 +127,28 @@ export default function GameScene() {
           shadow-mapSize={[1024, 1024]}
         />
 
-        {chunkEntries.map(({ chunk, origin }) => {
-          const { cx, cy, cz } = worldToChunkCoord(origin.x, origin.y, origin.z);
-          const key = chunkKey(cx, cy, cz);
-          return (
-            <ChunkMesh
-              key={key}
-              chunk={chunk}
-              origin={origin}
-              atlas={atlas}
-              version={gameStore.getChunkVersion(key)}
-            />
-          );
-        })}
+        {entries.map((entry) => (
+          <ChunkMesh
+            key={entry.key}
+            chunk={entry.chunk}
+            origin={entry.origin}
+            atlas={atlas}
+            version={entry.version}
+          />
+        ))}
 
         <PlayerController
           ref={controllerRef}
-          world={store.generated.world}
+          world={generated.world}
           spawn={spawnPosition}
           onLockStateChange={setLockState}
         />
 
-        <BlockTargeting store={gameStore} />
+        <BlockTargeting store={store} />
       </Canvas>
 
       <CrosshairOverlay visible={lockState === "playing"} />
-      <HotbarHud store={gameStore} />
+      <HotbarHud store={store} />
 
       <LockOverlay
         state={lockState}

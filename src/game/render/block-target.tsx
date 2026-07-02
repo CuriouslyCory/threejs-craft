@@ -53,7 +53,7 @@ import * as THREE from "three";
 import { DEFAULT_REACH, type Vec3 } from "~/game/command";
 import { EYE_HEIGHT } from "~/game/player/step-player";
 import type { InstanceToCoordMap } from "~/game/render/chunk-mesh";
-import type { GameStore } from "~/game/store/world-store";
+import type { WorldStore } from "~/game/store/world-store";
 
 /** Reused every frame — screen-center NDC never changes. */
 const NDC_CENTER = new THREE.Vector2(0, 0);
@@ -90,7 +90,7 @@ function isPickableInstancedMesh(
 const OUTLINE_SCALE = 1.002;
 
 export interface BlockTargetingProps {
-  readonly store: GameStore;
+  readonly store: WorldStore;
 }
 
 /** Renders nothing visible on its own besides the outline — the crosshair
