@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `per-issue`
 - Tracking context: GitHub issues #18, #19, #20, #21 (no parent epic). Source plan: `/home/curiouslycory/.claude/plans/please-make-a-bulletproof-plan-cached-iverson.md`
-- Last updated: 2026-07-02 by orchestrator — integration branch `feat/world-persistence` created at `cd5f529` (= main tip) and pushed to origin. Worktree `../threejs-craft-wt-18` on `feat/18-edit-delta-core` ready. #18 planned (`plans/18.md` rewritten to correct earlier draft's `Buffer`-in-client / private-`World.chunks` / `GeneratedWorld` defects). Dispatching specialist agent for #18.
+- Last updated: 2026-07-02 by orchestrator — #18 VERIFIED and **PR #22 open** (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
 
 ## Status legend
 
@@ -24,7 +24,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #18 | `feat/18-edit-delta-core` | `../threejs-craft-wt-18` | #18 | none | `plans/18.md` | in-progress | no |
+| #18 | `feat/18-edit-delta-core` | `../threejs-craft-wt-18` | #18 | none | `plans/18.md` | verified (PR #22 open, awaiting human merge) | no |
 
 ## Wave 2 (single item): branch from the post-Wave-1 integration tip
 
@@ -50,7 +50,7 @@ Record pass/fail and date when each item clears its gate in-worktree, before mer
 
 | Item | Build | Lint | Typecheck | Tests | Acceptance criteria | Item-specific check |
 | --- | --- | --- | --- | --- | --- | --- |
-| #18 | - | - | - | - | - | worldgen determinism golden test |
+| #18 | pass | pass (2 pre-existing warnings) | pass | pass (198/198) | met | golden determinism test pinned (sha256 of 2 chunks, seed `persistence-golden-seed-v1`); strict delta-length + version/OOB guards |
 | #19 | - | - | - | - | - | `pnpm db:generate` clean; router auth/accumulation/prune tests |
 | #20 | - | - | - | - | - | manual `/game` sign-in -> edit -> reload loop |
 | #21 | - | - | - | - | - | manual full loop (sign in -> Save -> New Game -> reload); a11y disabled-Settings focusable |
