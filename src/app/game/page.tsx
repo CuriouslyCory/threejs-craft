@@ -28,11 +28,11 @@ export default function GamePage() {
     <main className="relative h-dvh w-full bg-[#15162c] text-white">
       <div className="pointer-events-none absolute left-0 top-0 z-10 p-6">
         <h1 className="text-2xl font-bold tracking-tight">
-          <span className="text-[hsl(280,100%,70%)]">/game</span> — static world
+          <span className="text-[hsl(280,100%,70%)]">/game</span> — your world
         </h1>
         <p className="text-sm text-white/70">
           Click to look around — WASD to move, Shift to sprint, Space to jump
-          (double-tap to fly), Esc to pause.
+          (double-tap to fly), Esc for the pause menu.
         </p>
       </div>
       <GameScene />
