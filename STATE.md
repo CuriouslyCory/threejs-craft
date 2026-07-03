@@ -36,7 +36,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #20 | `feat/20-load-continuous-persist` | `../wt-20` | #20 | #18, #19 | `plans/20.md` | not-started | no |
+| #20 | `feat/20-load-continuous-persist` | `../threejs-craft-wt-20` | #20 | #18, #19 | `plans/20.md` | planned (pre-planned during #19 merge wait; worktree not yet created) | no |
 
 ## Wave 4 (single item): branch from the post-Wave-3 integration tip
 
