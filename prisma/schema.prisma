@@ -58,14 +58,15 @@ model Session {
 }
 
 model User {
-    id            String    @id @default(cuid())
+    id            String      @id @default(cuid())
     name          String?
-    email         String?   @unique
+    email         String?     @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
+    savedWorld    SavedWorld?
 }
 
 model VerificationToken {
@@ -74,4 +75,32 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+// Per-user world persistence (#19): exactly one active `SavedWorld` per
+// user, storing only the seed plus its edit-deltas — see
+// `docs/adr/0001-multiplayer-persistence-edit-deltas.md` for the storage
+// model this implements and `docs/adr/0002-per-user-world-persistence.md`
+// for why this is single-active-world-per-user rather than many worlds.
+model SavedWorld {
+    id        String       @id @default(cuid())
+    userId    String       @unique
+    seed      String
+    version   Int          @default(1)
+    updatedAt DateTime     @updatedAt
+    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    deltas    ChunkDelta[]
+}
+
+// One row per touched chunk (composite PK enforces this uniqueness), storing
+// a compact sparse diff against that chunk's seeded base — see
+// `src/game/persistence/chunk-delta.ts` for the encoding and
+// `src/game/persistence/world-delta.ts` for how deltas are replayed.
+model ChunkDelta {
+    savedWorldId String
+    chunkKey     String
+    data         Bytes
+    savedWorld   SavedWorld @relation(fields: [savedWorldId], references: [id], onDelete: Cascade)
+
+    @@id([savedWorldId, chunkKey])
 }
