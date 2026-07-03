@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `per-issue`
 - Tracking context: GitHub issues #18, #19, #20, #21 (no parent epic). Source plan: `/home/curiouslycory/.claude/plans/please-make-a-bulletproof-plan-cached-iverson.md`
-- Last updated: 2026-07-03 by orchestrator — **#19 MERGED** (PR #23, merge 12db0eb); integration re-verified green after `prisma generate` (see gotcha below). wt-19 removed. **Wave 3 (#20) executing** in wt-20 (branched from 12db0eb); dispatching specialist against `plans/20.md`. [Prior: #19 VERIFIED and PR #23 open] (`feat/19-server-persistence` → `feat/world-persistence`, commit a49401f). Gate green: db:generate ✓, build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, **221/221 tests**. Reviewed via CodeRabbit CLI (3 rounds, fixes applied) + orchestrator verification (scope/auth/base64/no-Buffer-in-game invariants checked). **BLOCKED on human merge of PR #23 before #20 can branch.** While waiting: pre-planning #20. [Prior: #18 MERGED (PR #22, 7a20ebc); Wave 2 executed] (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
+- Last updated: 2026-07-03 by orchestrator — **#20 VERIFIED and PR #24 open** (`feat/20-load-continuous-persist` → `feat/world-persistence`, commit b280d4f). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, **237/237 tests**. Reviewed via CodeRabbit CLI (now authenticated — 1 major finding fixed: signed-out `WorldSession` rebuilt the ephemeral world on background refetch due to inline `[]` deltas → hoisted `EMPTY_DELTAS`). NOTE: the #20 specialist stalled in a CodeRabbit-Monitor wait loop and never committed; orchestrator took over (ran review synchronously, applied the fix, verified, committed, PR'd). **Signed-in OAuth loop unverified** (flagged in PR for human). **BLOCKED on human merge of PR #24 before #21 can branch.** While waiting: pre-planning #21. [Prior: #19 MERGED (PR #23, 12db0eb)] (`feat/19-server-persistence` → `feat/world-persistence`, commit a49401f). Gate green: db:generate ✓, build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, **221/221 tests**. Reviewed via CodeRabbit CLI (3 rounds, fixes applied) + orchestrator verification (scope/auth/base64/no-Buffer-in-game invariants checked). **BLOCKED on human merge of PR #23 before #20 can branch.** While waiting: pre-planning #20. [Prior: #18 MERGED (PR #22, 7a20ebc); Wave 2 executed] (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
 
 ## Status legend
 
@@ -36,13 +36,13 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #20 | `feat/20-load-continuous-persist` | `../threejs-craft-wt-20` | #20 | #18, #19 | `plans/20.md` | in-progress (worktree created at 12db0eb; dispatching specialist) | no |
+| #20 | `feat/20-load-continuous-persist` | `../threejs-craft-wt-20` | #20 | #18, #19 | `plans/20.md` | verified (PR #24 open, awaiting human merge; signed-in OAuth loop unverified — flagged) | no |
 
 ## Wave 4 (single item): branch from the post-Wave-3 integration tip
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #21 | `feat/21-pause-menu` | `../wt-21` | #21 | #20 | `plans/21.md` | not-started | no |
+| #21 | `feat/21-pause-menu` | `../threejs-craft-wt-21` | #21 | #20 | `plans/21.md` | planned (pre-planned during #20 merge wait, grounded on #20's outer/inner split + lock-overlay.tsx; worktree not yet created) | no |
 
 ## Verification gates
 
@@ -52,7 +52,7 @@ Record pass/fail and date when each item clears its gate in-worktree, before mer
 | --- | --- | --- | --- | --- | --- | --- |
 | #18 | pass | pass (2 pre-existing warnings) | pass | pass (198/198) | met | golden determinism test pinned (sha256 of 2 chunks, seed `persistence-golden-seed-v1`); strict delta-length + version/OOB guards |
 | #19 | pass | pass (2 pre-existing warnings) | pass | pass (221/221) | met | `pnpm db:generate` clean; auth (UNAUTHORIZED signed-out) + same-chunk accumulation + revert-prune + newGame reseed tests all present |
-| #20 | - | - | - | - | - | manual `/game` sign-in -> edit -> reload loop |
+| #20 | pass | pass (2 pre-existing warnings) | pass | pass (237/237) | partial | onCommit-only-on-ok + persist-queue FIFO/retry/flush/lastError tests present; signed-OUT ephemeral path verified live in preview browser; **signed-IN sign-in→edit→reload loop UNVERIFIED (needs OAuth) — flagged for human in PR #24** |
 | #21 | - | - | - | - | - | manual full loop (sign in -> Save -> New Game -> reload); a11y disabled-Settings focusable |
 
 ## Integration re-verification log
@@ -74,8 +74,8 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 | D1: server applies command's voxel mutation only (no reach/inventory re-validation; client trusted) | #19 | yes (ADR-0002 + code doc, PR #23) | no |
 | Migration baseline: first `prisma migrate dev` snapshots the FULL schema (all tables); deploying onto a `db push`-created DB needs `migrate resolve --applied` first | #19 | yes (flagged in PR #23 body) | no |
 | Deferred concurrency: concurrent newGame double-submit + concurrent recordEdit lost-update under default isolation (out of scope; no race under #20 serial queue) | #19 | yes (code comments, PR #23) | no |
-| Play-first soft gate (signed-out plays an ephemeral world) | #20 | no | no |
-| Inventory and player-position persistence intentionally out of scope | #20 | no | no |
+| Play-first soft gate (signed-out plays an ephemeral world) | #20 | yes (PR #24 body + code) | no |
+| Inventory and player-position persistence intentionally out of scope | #20 | yes (PR #24 body) | no |
 | Settings permanently inert (accessible-disabled, not native `disabled`) | #21 | no | no |
 | Signed-out New Game does a local ephemeral reseed | #21 | no | no |
 
@@ -99,6 +99,8 @@ Use this space for anything that affected the run: a failed gate and how it was 
 - **2026-07-02 — Wave 1 (#18) done to PR #22, awaiting human merge.** Earlier `plans/18.md` draft (and partial worktree code) had a `Buffer`/base64-in-client codec + private-`World.chunks` access + `GeneratedWorld`-as-`World` bugs; plan rewritten and code corrected before commit. Review findings applied: strict delta-length validation (reject a `count` that understates trailing bytes) and a documented single-record-per-`chunkKey` precondition (enforced downstream by #19's composite PK).
 - **2026-07-02 — Wave 2 (#19) done to PR #23, awaiting human merge.** Migration nuance: repo `db:generate` = `prisma migrate dev`; no `prisma/migrations/` existed, so this PR introduces the dir with a full-schema baseline migration (all tables). Agent resolved D1 via direct `world.setBlock` (applyCommand needs unpersisted Inventory/playerBox). Two concurrency races documented+deferred.
 - **2026-07-03 — #19 merged (12db0eb); Wave 3 (#20) executing** in wt-20.
-- **RESUME POINT (after PR for #20 is merged by a human):** `git switch feat/world-persistence && git pull` → **`pnpm exec prisma generate`** (Prisma gotcha above) → re-verify integration (build/lint/typecheck/test) and log it → remove wt-20 + delete its branch → `git worktree add ../threejs-craft-wt-21 -b feat/21-pause-menu feat/world-persistence` → **pre-plan #21** (`plans/21.md` — not yet written; source-plan Tracer 4 detail at lines 165-196 of the source plan; grounds against #20's outer-component shape + `src/game/render/lock-overlay.tsx`) → execute. Flags for #21: Settings accessible-disabled (`aria-disabled`, not native `disabled`); signed-out New Game = local ephemeral reseed.
+- **2026-07-03 — #20 done to PR #24, awaiting human merge.** Specialist stalled in a CodeRabbit-Monitor wait loop (never committed); orchestrator took over: ran `coderabbit review --agent --base feat/world-persistence` SYNCHRONOUSLY (lesson: don't background CodeRabbit + wait on Monitor), fixed the 1 major finding (EMPTY_DELTAS), verified, committed b280d4f, opened PR #24. #21 is now fully pre-planned (`plans/21.md`).
+- **RESUME POINT (after PR #24 for #20 is merged by a human):** `git switch feat/world-persistence && git pull` → **`pnpm exec prisma generate`** (Prisma gotcha) → re-verify integration (build/lint/typecheck/test) and log it → remove wt-20 + delete its branch → `git worktree add ../threejs-craft-wt-21 -b feat/21-pause-menu feat/world-persistence` → execute `plans/21.md` (dispatch Sonnet specialist; instruct it to run CodeRabbit SYNCHRONOUSLY, not backgrounded). Flags for #21: Settings accessible-disabled (`aria-disabled`, not native `disabled`); signed-out New Game = local ephemeral reseed. Signed-in Save/New-Game loop needs OAuth — will be flagged for human like #20.
+- **AFTER #21 MERGES → FINALIZATION (Task #5):** full verify on integration → ONE PR `feat/world-persistence` → `main` summarizing all decisions/ADRs with `Closes #18/#19/#20/#21` → remove worktrees + delete merged branches → single epic retrospective → leave final PR for human.
 - **[Historical] RESUME POINT for #18→#19 (done):** PR #22 merged 7a20ebc; wt-19 branched; #19 executed.
 - **2026-07-02 — Wave 1 plan written.** Issue #18 plan generated: pure edit-delta core (chunk accessors, codec, world bridge, worldgen determinism test). Dispatching Sonnet agent to worktree `../wt-18` for implementation.
