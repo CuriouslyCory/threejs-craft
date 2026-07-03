@@ -6,7 +6,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 - Base branch / final PR target: `main`
 - PR model: `per-issue`
 - Tracking context: GitHub issues #18, #19, #20, #21 (no parent epic). Source plan: `/home/curiouslycory/.claude/plans/please-make-a-bulletproof-plan-cached-iverson.md`
-- Last updated: 2026-07-02 by orchestrator — **#18 MERGED** (PR #22, merge 7a20ebc); integration re-verified green (build/lint/typecheck/198 tests). wt-18 removed. **Wave 2 (#19) executing** in wt-19 (branched from 7a20ebc); specialist dispatched against `plans/19.md`. [Prior: #18 VERIFIED and PR #22 open] (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
+- Last updated: 2026-07-02 by orchestrator — **#19 VERIFIED and PR #23 open** (`feat/19-server-persistence` → `feat/world-persistence`, commit a49401f). Gate green: db:generate ✓, build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, **221/221 tests**. Reviewed via CodeRabbit CLI (3 rounds, fixes applied) + orchestrator verification (scope/auth/base64/no-Buffer-in-game invariants checked). **BLOCKED on human merge of PR #23 before #20 can branch.** While waiting: pre-planning #20. [Prior: #18 MERGED (PR #22, 7a20ebc); Wave 2 executed] (`feat/18-edit-delta-core` → `feat/world-persistence`, commits d678096 + acc4f2d), left for human review/merge. Implemented by Sonnet specialist; independently reviewed by Code Reviewer agent (2 findings applied: strict delta-length validation + single-record-per-key doc). Gate green: build ✓, lint ✓ (2 pre-existing warnings), typecheck ✓, 198/198 tests, golden determinism test pinned. **BLOCKED on human merge of PR #22 before #19 can branch** (dependent worktree must branch from post-#18 integration tip). While waiting: pre-planning #19.
 
 ## Status legend
 
@@ -30,7 +30,7 @@ Source of truth for this run. Update after every state change (plan saved, agent
 
 | Item | Slug / branch | Worktree | Tracker key | Depends on | Plan file | Status | Merged |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| #19 | `feat/19-server-persistence` | `../threejs-craft-wt-19` | #19 | #18 | `plans/19.md` | in-progress (worktree created at 7a20ebc; dispatching specialist) | no |
+| #19 | `feat/19-server-persistence` | `../threejs-craft-wt-19` | #19 | #18 | `plans/19.md` | verified (PR #23 open, awaiting human merge) | no |
 
 ## Wave 3 (single item): branch from the post-Wave-2 integration tip
 
@@ -51,7 +51,7 @@ Record pass/fail and date when each item clears its gate in-worktree, before mer
 | Item | Build | Lint | Typecheck | Tests | Acceptance criteria | Item-specific check |
 | --- | --- | --- | --- | --- | --- | --- |
 | #18 | pass | pass (2 pre-existing warnings) | pass | pass (198/198) | met | golden determinism test pinned (sha256 of 2 chunks, seed `persistence-golden-seed-v1`); strict delta-length + version/OOB guards |
-| #19 | - | - | - | - | - | `pnpm db:generate` clean; router auth/accumulation/prune tests |
+| #19 | pass | pass (2 pre-existing warnings) | pass | pass (221/221) | met | `pnpm db:generate` clean; auth (UNAUTHORIZED signed-out) + same-chunk accumulation + revert-prune + newGame reseed tests all present |
 | #20 | - | - | - | - | - | manual `/game` sign-in -> edit -> reload loop |
 | #21 | - | - | - | - | - | manual full loop (sign in -> Save -> New Game -> reload); a11y disabled-Settings focusable |
 
@@ -67,9 +67,12 @@ After each merge, re-run `pnpm build`, `pnpm lint`, `pnpm typecheck`, and `pnpm 
 
 | Decision | Item | Recorded | Confirmed at PR review |
 | --- | --- | --- | --- |
-| ADR-0002: per-user world persistence, single active save | #19 | no | no |
-| ADR-0003: New Game mints a fresh random seed, atomic purge-then-reseed | #19 | no | no |
-| OPEN: default schema `SavedWorld.userId @unique` vs optional multiplayer-friendlier `World { ownerId }` (not baked in) | #19 | no | no |
+| ADR-0002: per-user world persistence, single active save | #19 | yes (docs/adr/0002, PR #23) | no |
+| ADR-0003: New Game mints a fresh random seed, atomic purge-then-reseed | #19 | yes (docs/adr/0003, PR #23) | no |
+| OPEN: default schema `SavedWorld.userId @unique` vs optional multiplayer-friendlier `World { ownerId }` (not baked in) | #19 | yes (flagged in PR #23 body) | no |
+| D1: server applies command's voxel mutation only (no reach/inventory re-validation; client trusted) | #19 | yes (ADR-0002 + code doc, PR #23) | no |
+| Migration baseline: first `prisma migrate dev` snapshots the FULL schema (all tables); deploying onto a `db push`-created DB needs `migrate resolve --applied` first | #19 | yes (flagged in PR #23 body) | no |
+| Deferred concurrency: concurrent newGame double-submit + concurrent recordEdit lost-update under default isolation (out of scope; no race under #20 serial queue) | #19 | yes (code comments, PR #23) | no |
 | Play-first soft gate (signed-out plays an ephemeral world) | #20 | no | no |
 | Inventory and player-position persistence intentionally out of scope | #20 | no | no |
 | Settings permanently inert (accessible-disabled, not native `disabled`) | #21 | no | no |
@@ -92,5 +95,7 @@ Use this space for anything that affected the run: a failed gate and how it was 
 - Strictly serial chain (#18 -> #19 -> #20 -> #21); no intra-wave parallelism. Orchestration value is worktree isolation, resumable state, per-item planning, and green-baseline re-verification.
 - **CodeRabbit CLI is signed out** (non-interactive session can't run `coderabbit auth login`). #18 was reviewed by an internal `Code Reviewer` subagent instead (2 findings applied). PRs will also get CodeRabbit's GitHub-app review if configured. To restore CLI review, run `coderabbit auth login` in an interactive session.
 - **2026-07-02 — Wave 1 (#18) done to PR #22, awaiting human merge.** Earlier `plans/18.md` draft (and partial worktree code) had a `Buffer`/base64-in-client codec + private-`World.chunks` access + `GeneratedWorld`-as-`World` bugs; plan rewritten and code corrected before commit. Review findings applied: strict delta-length validation (reject a `count` that understates trailing bytes) and a documented single-record-per-`chunkKey` precondition (enforced downstream by #19's composite PK).
-- **RESUME POINT:** when PR #22 is merged by a human → `git switch feat/world-persistence && git pull` → re-verify integration (build/lint/typecheck/test) and log it → `git worktree add ../threejs-craft-wt-19 -b feat/19-server-persistence feat/world-persistence` → execute `plans/19.md`. Decision D1 (server applies voxel mutation only, no reach/inventory re-validation) is flagged in the plan for reviewer sign-off alongside ADR-0002/0003 and the OPEN `World{ownerId}` question.
+- **2026-07-02 — Wave 2 (#19) done to PR #23, awaiting human merge.** Migration nuance: repo `db:generate` = `prisma migrate dev`; no `prisma/migrations/` existed, so this PR introduces the dir with a full-schema baseline migration (all tables). Agent resolved D1 via direct `world.setBlock` (applyCommand needs unpersisted Inventory/playerBox). Two concurrency races documented+deferred.
+- **RESUME POINT (after PR #23 merged by a human):** `git switch feat/world-persistence && git pull` → re-verify integration (build/lint/typecheck/test) and log it → remove wt-19 + delete its branch → `git worktree add ../threejs-craft-wt-20 -b feat/20-load-continuous-persist feat/world-persistence` → execute `plans/20.md`. #20 is the first player-visible slice (auth-aware load + serial persist queue + onCommit sink); shared surface with #21 is `game-scene.tsx` (inherited, not concurrent). Flags for #20: play-first soft gate (signed-out plays ephemeral world); inventory/player-position NOT persisted.
+- **[Historical] RESUME POINT for #18→#19 (done):** PR #22 merged 7a20ebc; wt-19 branched; #19 executed.
 - **2026-07-02 — Wave 1 plan written.** Issue #18 plan generated: pure edit-delta core (chunk accessors, codec, world bridge, worldgen determinism test). Dispatching Sonnet agent to worktree `../wt-18` for implementation.
