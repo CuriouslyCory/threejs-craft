@@ -5,6 +5,14 @@
  * will stand behind), and exposes a single versioned, key-carrying
  * `getSnapshot()`/`subscribe()` pair for `useSyncExternalStore`.
  *
+ * #20: an optional `onCommit(command, changed)` hook, fired from inside
+ * `apply`'s `if (result.ok)` block after the local mutation is fully
+ * committed, is this store's only seam for persistence — `game-scene.tsx`
+ * wires it to a `PersistQueue.enqueue` for signed-in players and leaves it
+ * `undefined` for the signed-out ephemeral world. It never fires on a
+ * rejected command and is only reachable via `apply`'s pointerdown-driven
+ * call path, so it adds no per-frame work.
+ *
  * This module merges what used to be three shallow pieces: the mutation
  * store (`GameStore`, #8), the read-only chunk-enumeration surface
  * (`WorldSource`/`LocalWorldSource`/`createLocalWorldStore`, #6/#10), and the
@@ -84,7 +92,14 @@ export class WorldStore {
   private snapshot: readonly WorldChunkEntry[];
   private readonly listeners = new Set<() => void>();
 
-  constructor(world: World, inventory: Inventory = createInventory()) {
+  constructor(
+    world: World,
+    inventory: Inventory = createInventory(),
+    private readonly onCommit?: (
+      command: Command,
+      changed: readonly ChunkKey[],
+    ) => void,
+  ) {
     this.world = world;
     this.inventory = inventory;
     this.snapshot = this.rebuildSnapshot();
@@ -116,6 +131,11 @@ export class WorldStore {
       }
       this.rebuildSnapshot();
       this.notify();
+      // #20: fire the persistence hook only on a successful apply, after the
+      // local mutation is fully committed (version bump + snapshot + notify)
+      // — never on a rejected command, and only from this pointerdown-driven
+      // path, never per frame.
+      this.onCommit?.(command, result.changed);
     }
 
     return result;
@@ -205,6 +225,7 @@ export class WorldStore {
 export function createWorldStore(
   world: World,
   inventory?: Inventory,
+  onCommit?: (command: Command, changed: readonly ChunkKey[]) => void,
 ): WorldStore {
-  return new WorldStore(world, inventory);
+  return new WorldStore(world, inventory, onCommit);
 }

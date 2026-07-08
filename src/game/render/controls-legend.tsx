@@ -50,7 +50,7 @@ const CONTROLS: readonly ControlRow[] = [
   { keys: "Left click", action: "Break block" },
   { keys: "Right click", action: "Place block" },
   { keys: "1 – 6", action: "Select hotbar slot" },
-  { keys: "Esc", action: "Pause" },
+  { keys: "Esc", action: "Pause menu" },
 ];
 
 export function ControlsLegend() {

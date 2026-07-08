@@ -124,6 +124,45 @@ describe("WorldStore.apply", () => {
   });
 });
 
+describe("WorldStore — onCommit hook (#20)", () => {
+  it("fires with (command, changed) only after a successful apply", () => {
+    const world = new World();
+    const at = { x: 1, y: 0, z: 0 };
+    world.setBlock(at.x, at.y, at.z, BlockType.Dirt);
+    const onCommit = vi.fn();
+    const store = createWorldStore(world, undefined, onCommit);
+
+    const command = { type: "BreakBlock" as const, at };
+    const result = store.apply(command, ORIGIN);
+
+    expect(result.ok).toBe(true);
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith(command, (result as { changed: unknown }).changed);
+  });
+
+  it("is never called when apply rejects the command", () => {
+    const world = new World(); // air at `at` -> BreakBlock rejected
+    const at = { x: 1, y: 0, z: 0 };
+    const onCommit = vi.fn();
+    const store = createWorldStore(world, undefined, onCommit);
+
+    const result = store.apply({ type: "BreakBlock", at }, ORIGIN);
+
+    expect(result.ok).toBe(false);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("is optional — apply behaves identically when omitted", () => {
+    const world = new World();
+    const at = { x: 1, y: 0, z: 0 };
+    world.setBlock(at.x, at.y, at.z, BlockType.Dirt);
+    const store = createWorldStore(world); // no onCommit
+
+    expect(() => store.apply({ type: "BreakBlock", at }, ORIGIN)).not.toThrow();
+    expect(world.getBlock(at.x, at.y, at.z)).toBe(BlockType.Air);
+  });
+});
+
 describe("WorldStore.selectSlot / cycleSelection", () => {
   it("selectSlot updates the snapshot and notifies subscribers", () => {
     const store = createWorldStore(new World());
